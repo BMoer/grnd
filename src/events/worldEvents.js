@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // WORLD EVENTS
 // Exogenous market events. You don't choose these — they choose you.
-// 4 curated events, each with real impact and memorable flavor.
+// 4 curated events. They hit hard — this is the market being the market.
 // ═══════════════════════════════════════════════════════════════
 
 export const WORLD_EVENTS = [
@@ -12,9 +12,10 @@ export const WORLD_EVENTS = [
     flavor: 'Two prospects ghosted you this week. Budget freezes. Your pipeline just got longer — not in a good way.',
     effect: (s) => ({
       ...s,
-      pipeline: Math.max(0, s.pipeline - 5),
-      churn: s.churn + 3,
-      pmf: Math.max(0, s.pmf - 2),
+      pipeline: Math.max(0, Math.round(s.pipeline * 0.6)),
+      churn: s.churn + 4,
+      pmf: Math.max(0, s.pmf - 3),
+      burnRate: s.burnRate + 300, // can't cut costs instantly
     }),
   },
 
@@ -25,8 +26,10 @@ export const WORLD_EVENTS = [
     flavor: 'A prospect asked if you use AI. You said yes. (Everyone says yes.)',
     effect: (s) => ({
       ...s,
-      pipeline: s.pipeline + 8,
-      pmf: s.pmf + 2,
+      pipeline: s.pipeline + 6,
+      pmf: s.pmf + 1,
+      // Hype inflates expectations — burn increases as you chase the narrative
+      burnRate: s.burnRate + 500,
     }),
   },
 
@@ -35,13 +38,18 @@ export const WORLD_EVENTS = [
     title: 'Unexpected Virality',
     text: 'Someone with a large following posted about your product. Your server is sweating. Your inbox is full. This might not last, but right now it\'s real.',
     flavor: 'Traffic spiked 10x. Most won\'t stick. But some will. The question is which ones.',
-    effect: (s) => ({
-      ...s,
-      customers: s.customers + Math.round(5 + Math.random() * 10),
-      pipeline: s.pipeline + 20,
-      totalMRR: (s.totalMRR ?? 0) + Math.round((5 + Math.random() * 10) * (s.price ?? 49)),
-      burnRate: s.burnRate + 500,
-    }),
+    effect: (s) => {
+      // Viral = lots of unqualified signups. Most churn immediately.
+      const newUsers = Math.round(3 + Math.random() * 8);
+      return {
+        ...s,
+        customers: s.customers + newUsers,
+        pipeline: s.pipeline + 15,
+        totalMRR: (s.totalMRR ?? 0) + newUsers * (s.price ?? 0),
+        burnRate: s.burnRate + 800, // infra costs spike
+        churn: s.churn + 3, // unqualified users churn fast
+      };
+    },
   },
 
   {
@@ -51,9 +59,9 @@ export const WORLD_EVENTS = [
     flavor: 'Your team is rattled. One advisor texted "Saw the news. You okay?" The answer depends on what you do next.',
     effect: (s) => ({
       ...s,
-      churn: s.churn + 2,
-      pipeline: Math.max(0, s.pipeline - 3),
-      pmf: Math.max(0, s.pmf - 1),
+      churn: s.churn + 3,
+      pipeline: Math.max(0, Math.round(s.pipeline * 0.7)),
+      pmf: Math.max(0, s.pmf - 2),
     }),
   },
 ];

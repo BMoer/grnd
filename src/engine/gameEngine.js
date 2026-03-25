@@ -1,9 +1,15 @@
 // ═══════════════════════════════════════════════════════════════
 // GAME ENGINE
 // Core loop: month advancement, state transitions, end conditions.
+//
+// Financial pressure is real:
+// - Churn compounds monthly
+// - Burn rate has hidden costs (infra, tools, legal)
+// - Pipeline decays without active effort
+// - Revenue doesn't just appear from customers
 // ═══════════════════════════════════════════════════════════════
 
-import { drawFromCorridor } from './varianceEngine.js';
+import { applyVariance } from './varianceEngine.js';
 
 /**
  * Advance the game by one month.
@@ -12,36 +18,47 @@ import { drawFromCorridor } from './varianceEngine.js';
 export function advanceMonth(state, classConfig) {
   const month = state.month + 1;
 
-  // Draw actuals from reality corridors (with drift from decisions)
   const actualChurn = state.churn ?? 5;
   const actualCAC = state.cac ?? 80;
   const conversionRate = state.conversionRate ?? 15;
+  const price = state.price ?? 0; // 0 if player hasn't set pricing yet
 
-  // Calculate new metrics
-  const pipeline = Math.max(0, state.pipeline ?? 12);
-  const newTrials = Math.round(pipeline * (0.7 + Math.random() * 0.6)); // some pipeline → trial variance
+  // Pipeline decays naturally (-10% per month without effort)
+  const pipelineDecay = Math.round((state.pipeline ?? 12) * 0.9);
+  const pipeline = Math.max(0, pipelineDecay);
+
+  // Trials from pipeline (with variance)
+  const newTrials = Math.max(0, applyVariance(Math.round(pipeline * 0.6), 0.3));
   const conversions = Math.round(newTrials * (conversionRate / 100));
-  const price = state.price ?? 49;
 
+  // Customer churn (compounds!)
   const prevCustomers = state.customers ?? 0;
   const churned = Math.round(prevCustomers * (actualChurn / 100));
   const customers = Math.max(0, prevCustomers + conversions - churned);
 
+  // MRR
   const newMRR = conversions * price;
   const churnedMRR = Math.round((state.totalMRR ?? 0) * (actualChurn / 100));
   const totalMRR = Math.max(0, (state.totalMRR ?? 0) + newMRR - churnedMRR);
-
   const revenue = totalMRR;
+
+  // Costs — burn has hidden components that increase over time
   const supportCosts = customers * (state.supportCost ?? 5);
   const burnBase = state.burnRate ?? 8000;
-  const totalBurn = burnBase + supportCosts;
+  // Infrastructure scales slightly with customers
+  const infraCost = Math.round(customers * 2);
+  // Misc costs that creep up (legal, tools, subscriptions)
+  const miscCreep = month > 3 ? Math.round(month * 50) : 0;
+  const totalBurn = burnBase + supportCosts + infraCost + miscCreep;
+
   const cash = Math.round((state.cash ?? 100000) - totalBurn + revenue);
   const netBurn = Math.max(0, totalBurn - revenue);
   const runway = netBurn > 0 ? Math.floor(Math.max(0, cash) / netBurn) : 99;
 
+  // Unit economics
   const ltv = actualChurn > 0 ? Math.round(price / (actualChurn / 100)) : price * 100;
   const ltvCacRatio = actualCAC > 0 ? Math.round((ltv / actualCAC) * 10) / 10 : 0;
-  const grossMargin = revenue > 0 ? Math.round(((revenue - supportCosts) / revenue) * 100) : 0;
+  const grossMargin = revenue > 0 ? Math.round(((revenue - supportCosts - infraCost) / revenue) * 100) : 0;
 
   return {
     ...state,

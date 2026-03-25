@@ -1,6 +1,16 @@
 // ═══════════════════════════════════════════════════════════════
 // GAME STORE (Zustand)
 // Single source of truth for all game state.
+//
+// Monthly flow:
+//   1. Month advances, financials calculated
+//   2. World event check → banner if triggered
+//   3. AP resets to 3, draw 2-3 decision events
+//   4. Events shown one at a time:
+//      - Enough AP → player picks choice (costs AP)
+//      - Not enough AP → auto-default (painful)
+//      - Player can also explicitly skip → default
+//   5. All events resolved → next month
 // ═══════════════════════════════════════════════════════════════
 
 import { create } from 'zustand';
@@ -12,6 +22,23 @@ import { applyEffectsWithVariance } from './engine/varianceEngine.js';
 import { generateSaaSForecast } from './engine/forecastEngine.js';
 import { calculateSaaSPMF } from './engine/pmfCalculator.js';
 import { isBoardMeetingMonth, calculateDeltas, generateBoardFeedback, getBoardPhase } from './engine/boardMeeting.js';
+
+/**
+ * Draw 1-3 events for a month from the available pool.
+ * Weighted: month 1-3 → 1-2 events, month 4+ → 2-3 events.
+ */
+function drawMonthEvents(month, usedEventIds) {
+  const available = getAvailableEvents(DECISION_EVENTS, month, usedEventIds);
+  if (available.length === 0) return [];
+
+  const maxDraw = month <= 3 ? 2 : 3;
+  const minDraw = month <= 2 ? 1 : 2;
+  const count = Math.min(available.length, minDraw + Math.floor(Math.random() * (maxDraw - minDraw + 1)));
+
+  // Shuffle and take
+  const shuffled = [...available].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
+}
 
 export const useGameStore = create((set, get) => ({
   // ─── Screen state ───
@@ -29,14 +56,21 @@ export const useGameStore = create((set, get) => ({
   decisions: [],
   log: [],
 
+  // ─── AP state ───
+  ap: 3,
+  maxAP: 3,
+
   // ─── Event state ───
+  monthEvents: [],       // all events drawn for this month
+  monthEventIndex: 0,    // which event we're showing
   currentEvent: null,
   currentWorldEvent: null,
   usedEvents: [],
   usedWorlds: [],
+  lastFeedback: null,    // feedback from last choice/default (shown briefly)
 
   // ─── Result ───
-  result: null, // null | 'dead' | 'pmf' | 'survived'
+  result: null,
 
   // ─── Board meeting ───
   boardData: null,
@@ -46,17 +80,9 @@ export const useGameStore = create((set, get) => ({
   selectClass: (classId) => {
     const config = getClass(classId);
     if (!config) return;
-
-    // Set default assumptions
     const defaults = {};
     config.assumptions.forEach(a => { defaults[a.key] = a.default; });
-
-    set({
-      classId,
-      classConfig: config,
-      assumptions: defaults,
-      screen: 'setup',
-    });
+    set({ classId, classConfig: config, assumptions: defaults, screen: 'setup' });
   },
 
   updateAssumption: (key, value) => {
@@ -67,10 +93,8 @@ export const useGameStore = create((set, get) => ({
     const { classId, classConfig, assumptions } = get();
     if (!classConfig) return;
 
-    // Generate forecast from assumptions
     const forecast = generateSaaSForecast(assumptions);
 
-    // Initialize game state from class defaults + player assumptions
     const initial = {
       ...classConfig.initial,
       price: assumptions.price ?? classConfig.initial.price,
@@ -91,34 +115,44 @@ export const useGameStore = create((set, get) => ({
       result: null,
       currentEvent: null,
       currentWorldEvent: null,
+      monthEvents: [],
+      monthEventIndex: 0,
+      ap: 3,
+      maxAP: 3,
       boardData: null,
+      lastFeedback: null,
       forecast,
       log: [
         { text: `CloudKitchen initialized`, color: classConfig.color, prefix: '$' },
         { text: classConfig.tagline, color: 'muted' },
         { text: `Win: ${classConfig.model.winBy}`, color: classConfig.color, prefix: '★' },
         { text: `Death: ${classConfig.model.deathBy}`, color: 'danger', prefix: '✗' },
-        { text: 'Outcomes vary ±30%. The market doesn\'t care about your plans.', color: 'caution', prefix: '!' },
+        { text: '3 AP per month. Choose wisely — what you skip resolves badly.', color: 'caution', prefix: '!' },
       ],
       screen: 'game',
     });
 
-    // Draw first event
-    setTimeout(() => {
-      const avail = getAvailableEvents(DECISION_EVENTS, 1, []);
-      const ev = pickRandom(avail);
-      if (ev) set({ currentEvent: ev });
-    }, 200);
+    // Start month 1
+    setTimeout(() => get()._startMonth(initial), 200);
   },
 
-  advanceToNextMonth: (newState) => {
-    const { classConfig, usedEvents, usedWorlds, forecast } = get();
+  /**
+   * Internal: begin a new month. Calculates financials, checks world events, draws events.
+   */
+  _startMonth: (prevState) => {
+    const { classConfig, usedEvents, usedWorlds, forecast, maxAP } = get();
 
     // Advance month + calculate financials
-    const monthly = engineAdvance(newState, classConfig);
-
-    // Recalculate PMF
+    const monthly = engineAdvance(prevState, classConfig);
     monthly.pmf = calculateSaaSPMF(monthly);
+
+    // Natural churn pressure: churn drifts up slightly each month if product isn't improving
+    if (monthly.month > 3 && (monthly.product ?? 30) < 40) {
+      monthly.churn = Math.min(20, (monthly.churn ?? 5) + 0.5);
+    }
+
+    // Reset AP
+    const ap = maxAP;
 
     // Check for world event (40% chance after month 2)
     let worldEvent = null;
@@ -130,15 +164,18 @@ export const useGameStore = create((set, get) => ({
     if (worldEvent) {
       const impacted = worldEvent.effect(monthly);
       impacted.pmf = calculateSaaSPMF(impacted);
-
       const newHistory = [...get().history, impacted];
 
       set(s => ({
         state: impacted,
         history: newHistory,
+        ap,
         usedWorlds: [...s.usedWorlds, worldEvent.id],
         currentWorldEvent: worldEvent,
         currentEvent: null,
+        monthEvents: [],
+        monthEventIndex: 0,
+        lastFeedback: null,
         decisions: [...s.decisions, {
           month: monthly.month,
           event: worldEvent.title,
@@ -149,80 +186,96 @@ export const useGameStore = create((set, get) => ({
         log: [
           ...s.log,
           { text: `── Month ${monthly.month} ──`, color: classConfig.color, prefix: '▸' },
+          { text: `AP: ${ap}/${maxAP}`, color: 'muted' },
           { text: `${worldEvent.title}`, color: 'caution', prefix: '!' },
         ],
       }));
 
-      // Check end condition
+      // Check end
       const end = checkEndCondition(impacted, newHistory);
-      if (end) {
-        set({ result: end, screen: 'end' });
-        return;
-      }
-      return;
+      if (end) { set({ result: end, screen: 'end' }); return; }
+      return; // wait for dismissWorldEvent
     }
 
-    // No world event — normal month
+    // No world event — save state and draw events
     const newHistory = [...get().history, monthly];
 
     set(s => ({
       state: monthly,
       history: newHistory,
+      ap,
+      lastFeedback: null,
       log: [
         ...s.log,
         { text: `── Month ${monthly.month} ──`, color: classConfig.color, prefix: '▸' },
+        { text: `AP: ${ap}/${maxAP}`, color: 'muted' },
       ],
     }));
 
-    // Check end condition
+    // Check end
     const end = checkEndCondition(monthly, newHistory);
-    if (end) {
-      set({ result: end, screen: 'end' });
-      return;
-    }
+    if (end) { set({ result: end, screen: 'end' }); return; }
 
-    // Check for board meeting
+    // Check board meeting
     if (isBoardMeetingMonth(monthly.month)) {
       const deltas = calculateDeltas(forecast, monthly, monthly.month);
       const phase = getBoardPhase(monthly.month, false);
       const feedback = generateBoardFeedback(deltas, phase, monthly.month);
-
-      set({
-        boardData: { deltas, phase, feedback, quarter: Math.ceil(monthly.month / 3) },
-        screen: 'board',
-      });
+      set({ boardData: { deltas, phase, feedback, quarter: Math.ceil(monthly.month / 3) }, screen: 'board' });
       return;
     }
 
-    // Draw next decision event
-    const avail = getAvailableEvents(DECISION_EVENTS, monthly.month, get().usedEvents);
-    const ev = pickRandom(avail);
-    if (ev) {
-      set({ currentEvent: ev });
-    } else {
-      // No events available — auto-advance
-      get().advanceToNextMonth(monthly);
-    }
+    // Draw events for this month
+    get()._drawMonthEvents();
   },
 
+  /**
+   * Internal: draw events for this month and present first one.
+   */
+  _drawMonthEvents: () => {
+    const { state, usedEvents } = get();
+    const events = drawMonthEvents(state.month, usedEvents);
+
+    if (events.length === 0) {
+      // No events available — auto-advance
+      get()._startMonth(state);
+      return;
+    }
+
+    set({
+      monthEvents: events,
+      monthEventIndex: 0,
+      currentEvent: events[0],
+    });
+  },
+
+  /**
+   * Player makes a choice on current event (costs AP).
+   */
   makeChoice: (choice) => {
-    const { state, currentEvent, classConfig } = get();
+    const { state, currentEvent, classConfig, ap } = get();
 
     // Apply effects with variance
     const newState = applyEffectsWithVariance(choice.effects, state);
+    newState.pmf = calculateSaaSPMF(newState);
 
-    // Get feedback
     const feedback = choice.dynamicFeedback
       ? choice.dynamicFeedback(state)
       : choice.feedback;
 
+    const newAP = ap - (currentEvent.apCost ?? 1);
+
     set(s => ({
+      state: newState,
+      ap: newAP,
+      lastFeedback: { text: feedback, type: 'choice' },
       decisions: [...s.decisions, {
         month: state.month,
         event: currentEvent.title,
         choice: choice.text,
         feedback,
         isWorld: false,
+        wasDefault: false,
       }],
       usedEvents: [...s.usedEvents, currentEvent.id],
       currentEvent: null,
@@ -233,69 +286,109 @@ export const useGameStore = create((set, get) => ({
       ],
     }));
 
-    // Advance to next month
-    setTimeout(() => get().advanceToNextMonth(newState), 100);
+    // Next event or next month
+    setTimeout(() => get()._nextEventOrMonth(), 100);
+  },
+
+  /**
+   * Player skips current event (or forced by insufficient AP) → default outcome.
+   */
+  skipEvent: () => {
+    const { state, currentEvent, ap } = get();
+    if (!currentEvent) return;
+
+    const def = currentEvent.defaultOutcome;
+    const newState = applyEffectsWithVariance(def.effects, state);
+    newState.pmf = calculateSaaSPMF(newState);
+    const forced = ap < (currentEvent.apCost ?? 1);
+
+    set(s => ({
+      state: newState,
+      lastFeedback: { text: def.feedback, type: 'default' },
+      decisions: [...s.decisions, {
+        month: state.month,
+        event: currentEvent.title,
+        choice: forced ? '[No AP — unaddressed]' : '[Skipped]',
+        feedback: def.feedback,
+        isWorld: false,
+        wasDefault: true,
+      }],
+      usedEvents: [...s.usedEvents, currentEvent.id],
+      currentEvent: null,
+      log: [
+        ...s.log,
+        { text: forced ? `✗ ${currentEvent.title} — no AP` : `✗ ${currentEvent.title} — skipped`, color: 'danger' },
+        { text: def.feedback, color: 'danger', prefix: ' ' },
+      ],
+    }));
+
+    setTimeout(() => get()._nextEventOrMonth(), 100);
+  },
+
+  /**
+   * Internal: present next event or end the month.
+   */
+  _nextEventOrMonth: () => {
+    const { monthEvents, monthEventIndex, state, ap } = get();
+    const nextIdx = monthEventIndex + 1;
+
+    if (nextIdx < monthEvents.length) {
+      const nextEvent = monthEvents[nextIdx];
+      set({ monthEventIndex: nextIdx, currentEvent: nextEvent, lastFeedback: null });
+
+      // Auto-default if not enough AP
+      if (ap < (nextEvent.apCost ?? 1)) {
+        setTimeout(() => get().skipEvent(), 600);
+      }
+    } else {
+      // All events resolved → next month
+      set({ lastFeedback: null });
+
+      // Check end after all events
+      const { history } = get();
+      const end = checkEndCondition(state, history);
+      if (end) { set({ result: end, screen: 'end' }); return; }
+
+      setTimeout(() => get()._startMonth(state), 200);
+    }
   },
 
   dismissWorldEvent: () => {
-    const { state, usedEvents } = get();
+    const { state, forecast } = get();
     set({ currentWorldEvent: null });
 
-    // Check for board meeting
-    const { forecast } = get();
+    // Check end
+    const { history } = get();
+    const end = checkEndCondition(state, history);
+    if (end) { set({ result: end, screen: 'end' }); return; }
+
+    // Check board meeting
     if (isBoardMeetingMonth(state.month)) {
       const deltas = calculateDeltas(forecast, state, state.month);
       const phase = getBoardPhase(state.month, false);
       const feedback = generateBoardFeedback(deltas, phase, state.month);
-
-      set({
-        boardData: { deltas, phase, feedback, quarter: Math.ceil(state.month / 3) },
-        screen: 'board',
-      });
+      set({ boardData: { deltas, phase, feedback, quarter: Math.ceil(state.month / 3) }, screen: 'board' });
       return;
     }
 
-    // Draw next decision event
-    const avail = getAvailableEvents(DECISION_EVENTS, state.month, usedEvents);
-    const ev = pickRandom(avail);
-    if (ev) {
-      set({ currentEvent: ev });
-    } else {
-      get().advanceToNextMonth(state);
-    }
+    get()._drawMonthEvents();
   },
 
   closeBoardMeeting: () => {
-    const { state, usedEvents } = get();
     set({ boardData: null, screen: 'game' });
-
-    // Draw next event
-    const avail = getAvailableEvents(DECISION_EVENTS, state.month, usedEvents);
-    const ev = pickRandom(avail);
-    if (ev) {
-      set({ currentEvent: ev });
-    } else {
-      get().advanceToNextMonth(state);
-    }
+    get()._drawMonthEvents();
   },
 
   restart: () => {
     set({
       screen: 'title',
-      classId: null,
-      classConfig: null,
-      assumptions: {},
-      forecast: [],
-      state: null,
-      history: [],
-      decisions: [],
-      log: [],
-      currentEvent: null,
-      currentWorldEvent: null,
-      usedEvents: [],
-      usedWorlds: [],
-      result: null,
-      boardData: null,
+      classId: null, classConfig: null, assumptions: {}, forecast: [],
+      state: null, history: [], decisions: [], log: [],
+      ap: 3, maxAP: 3,
+      monthEvents: [], monthEventIndex: 0,
+      currentEvent: null, currentWorldEvent: null,
+      usedEvents: [], usedWorlds: [],
+      lastFeedback: null, result: null, boardData: null,
     });
   },
 }));

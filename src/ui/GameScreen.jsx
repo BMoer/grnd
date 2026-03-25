@@ -7,7 +7,10 @@ import WorldEventBanner from './components/WorldEventBanner.jsx';
 import LogPanel from './components/LogPanel.jsx';
 
 export default function GameScreen() {
-  const { state, classConfig, currentEvent, currentWorldEvent, history, decisions, restart } = useGameStore();
+  const {
+    state, classConfig, currentEvent, currentWorldEvent,
+    history, decisions, restart, ap, maxAP, lastFeedback,
+  } = useGameStore();
   if (!state || !classConfig) return null;
 
   const accent = classConfig.color;
@@ -18,24 +21,44 @@ export default function GameScreen() {
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-canvas)' }}>
       {/* Header */}
       <header
-        className="flex justify-between items-center px-4 py-2 shrink-0"
+        className="flex justify-between items-center px-4 py-2.5 shrink-0"
         style={{ borderBottom: '1px solid var(--color-border)' }}
       >
-        <div className="flex items-center gap-2">
-          <span style={{ color: accent, fontSize: 14 }}>{classConfig.icon}</span>
+        <div className="flex items-center gap-3">
+          <span style={{ color: accent, fontSize: 16 }}>{classConfig.icon}</span>
           <span className="text-sm font-bold" style={{ fontFamily: 'var(--font-display)' }}>
             {classConfig.name}
           </span>
           <span
-            className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded-sm"
+            className="text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-sm font-medium"
             style={{ color: accent, background: `${accent}10`, fontFamily: 'var(--font-mono)' }}
           >
             M{state.month}
           </span>
+
+          {/* AP Display */}
+          <div className="flex items-center gap-1 ml-2">
+            <span className="text-[10px] uppercase tracking-widest font-medium" style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>
+              AP
+            </span>
+            <div className="flex gap-0.5">
+              {Array.from({ length: maxAP }).map((_, i) => (
+                <div
+                  key={i}
+                  className="w-3 h-3 rounded-sm"
+                  style={{
+                    background: i < ap ? accent : 'var(--color-border)',
+                    transition: 'background 300ms ease',
+                  }}
+                />
+              ))}
+            </div>
+          </div>
         </div>
+
         <button
           onClick={restart}
-          className="text-[10px] px-3 py-1 rounded cursor-pointer"
+          className="text-[10px] px-3 py-1.5 rounded cursor-pointer"
           style={{
             background: 'none',
             border: '1px solid var(--color-border)',
@@ -59,7 +82,20 @@ export default function GameScreen() {
 
           {/* Event area */}
           <div className="flex-1 overflow-auto p-4">
-            {currentWorldEvent ? (
+            {lastFeedback && !currentEvent && !currentWorldEvent ? (
+              /* Brief feedback flash between events */
+              <div
+                className="p-4 rounded"
+                style={{
+                  background: lastFeedback.type === 'default' ? 'var(--color-danger)06' : 'var(--color-surface)',
+                  border: `1px solid ${lastFeedback.type === 'default' ? 'var(--color-danger)' : 'var(--color-border)'}`,
+                }}
+              >
+                <p className="text-sm leading-relaxed" style={{ color: lastFeedback.type === 'default' ? 'var(--color-danger)' : 'var(--color-text-secondary)' }}>
+                  {lastFeedback.text}
+                </p>
+              </div>
+            ) : currentWorldEvent ? (
               <WorldEventBanner />
             ) : currentEvent ? (
               <EventCard />
@@ -125,13 +161,13 @@ export default function GameScreen() {
                   key={i}
                   className="text-[10px] mb-1 leading-snug py-1"
                   style={{
-                    color: d.isWorld ? 'var(--color-caution)' : 'var(--color-text-secondary)',
+                    color: d.isWorld ? 'var(--color-caution)' : d.wasDefault ? 'var(--color-danger)' : 'var(--color-text-secondary)',
                     borderBottom: '1px solid var(--color-border)',
                     fontFamily: 'var(--font-mono)',
                   }}
                 >
                   <span style={{ color: 'var(--color-text-muted)' }}>M{d.month}</span>{' '}
-                  {d.isWorld ? `${d.event}` : d.choice.slice(0, 50) + (d.choice.length > 50 ? '...' : '')}
+                  {d.isWorld ? `${d.event}` : d.wasDefault ? `✗ ${d.event}` : d.choice.slice(0, 50) + (d.choice.length > 50 ? '...' : '')}
                 </div>
               ))}
             </div>

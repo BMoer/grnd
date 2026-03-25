@@ -72,12 +72,13 @@ export const saas = {
   ],
 
   // Reality corridors — where actual values tend to land
+  // These are HARDER than what players assume. That's the point.
   corridors: {
     price: { min: 19, max: 299, center: 49 }, // player controls this
-    churnRate: { min: 3, max: 18, center: 7 },
-    cac: { min: 40, max: 250, center: 110 },
-    conversionRate: { min: 5, max: 35, center: 12 },
-    pipelineGrowth: { min: 5, max: 60, center: 15 },
+    churnRate: { min: 4, max: 20, center: 9 },       // SMB SaaS churn is brutal
+    cac: { min: 50, max: 300, center: 130 },          // niche B2B acquisition is expensive
+    conversionRate: { min: 3, max: 30, center: 10 },  // restaurant owners don't convert easy
+    pipelineGrowth: { min: 3, max: 40, center: 12 },  // organic growth is slow
   },
 
   // Initial game state
