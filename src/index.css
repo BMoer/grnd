@@ -1,0 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  --color-canvas: #F5F0EB;
+  --color-surface: #EDEAE4;
+  --color-raised: #E3DFD8;
+  --color-border: #D1CCC4;
+  --color-text: #1A1A1A;
+  --color-text-secondary: #5C5850;
+  --color-text-muted: #9C9689;
+  
+  --color-danger: #D64045;
+  --color-plan: #2D5DA1;
+  --color-caution: #E8A838;
+  --color-growth: #3A8A5C;
+  
+  --color-saas: #3A8A5C;
+  --color-marketplace: #7C5BBF;
+  --color-service: #C4842D;
+  --color-deeptech: #2D5DA1;
+  --color-consumer: #D64045;
+  --color-api: #4A4A4A;
+
+  --font-display: 'Outfit', 'DM Sans', sans-serif;
+  --font-mono: 'Space Mono', monospace;
+  --font-body: 'Outfit', 'DM Sans', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background: var(--color-canvas);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Tabular numbers for data */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
