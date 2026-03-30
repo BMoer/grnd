@@ -19,6 +19,7 @@ import { applyVariance, drawFromCorridor } from './varianceEngine.js';
 export function advanceMonth(state, classConfig) {
   const month = state.month + 1;
   const corridors = classConfig.corridors || {};
+  const fm = state.founderMods || {}; // founder attribute modifiers
 
   // ─── Reality corridor pulls ───
   // Each month, actual metrics drift toward their corridor center.
@@ -75,7 +76,8 @@ export function advanceMonth(state, classConfig) {
   const corridorCAC = corridors.cac || { min: 50, max: 300, center: 140 };
   // Price sensitivity: higher price → higher CAC (harder to sell expensive stuff)
   // Price sensitivity: non-linear — above cliff, CAC explodes
-  const cacCenterAdj = corridorCAC.center + pricePenalty * 40;
+  // Founder sales skill reduces CAC
+  const cacCenterAdj = (corridorCAC.center + pricePenalty * 40) * (fm.cacMultiplier ?? 1);
   let actualCAC = state.cac ?? 80;
   actualCAC = actualCAC * 0.75 + cacCenterAdj * 0.25;
   actualCAC = applyVariance(actualCAC, 0.2);
@@ -85,7 +87,8 @@ export function advanceMonth(state, classConfig) {
   const corridorConv = corridors.conversionRate || { min: 3, max: 25, center: 9 };
   // Price sensitivity: higher price → lower conversion
   // Price sensitivity: non-linear — above cliff, conversion collapses
-  const convCenterAdj = Math.max(1, corridorConv.center - pricePenalty * 2.5);
+  // Founder sales skill boosts conversion
+  const convCenterAdj = Math.max(1, corridorConv.center - pricePenalty * 2.5 + (fm.conversionBonus ?? 0));
   let conversionRate = state.conversionRate ?? 15;
   conversionRate = conversionRate * 0.75 + convCenterAdj * 0.25;
   // Product quality improves conversion
@@ -153,6 +156,19 @@ export function advanceMonth(state, classConfig) {
   let product = Math.min(85, productQuality);
   if (month > 2) {
     product = Math.max(10, product - 0.8); // decay accelerates slightly
+  }
+
+  // ─── Founder attribute bonuses ───
+  // Domain skill narrows corridor pulls (more accurate assumptions hold longer)
+  // This is applied retroactively as a slight resistance to corridor pull
+  // Late-game bonus for diverse founders (documented higher returns after month 12)
+  if (fm.lateGameBonus && month >= 12) {
+    pipeline = Math.round(pipeline * 1.05); // 5% growth bonus
+    product = Math.min(85, product + 0.3); // slight product quality boost
+  }
+  // Part-time penalty (working class, first 6 months)
+  if (fm.partTime && month <= (fm.partTimeMonths ?? 6)) {
+    product = Math.max(10, product - 0.5); // less time = slower product development
   }
 
   return {

@@ -6,6 +6,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { saas } from '../classes/saas.js';
+import { calculateBackgroundModifiers, applyDeltas, computeEngineModifiers, PRESETS } from '../classes/founderAttributes.js';
 import { advanceMonth, checkEndCondition, getAvailableEvents, pickRandom } from './gameEngine.js';
 import { applyEffectsWithVariance } from './varianceEngine.js';
 import { calculateSaaSPMF } from './pmfCalculator.js';
@@ -26,7 +27,7 @@ function drawMonthEvents(month, usedEventIds) {
   return shuffled.slice(0, count);
 }
 
-function simulateGame(assumptions = null) {
+function simulateGame(assumptions = null, founderBg = null) {
   const config = saas;
   const ass = assumptions || {
     price: 49,
@@ -37,23 +38,50 @@ function simulateGame(assumptions = null) {
     supportCost: 5,
   };
 
+  // Compute founder modifiers
+  let founderMods = {};
+  if (founderBg) {
+    const { deltas, modifiers } = calculateBackgroundModifiers(founderBg.background);
+    let finalAttrs;
+    if (founderBg.isPreset) {
+      // Preset: attributes are already final
+      finalAttrs = founderBg.attributes;
+      if (founderBg.teamFundraisingOverride) {
+        modifiers.fundraisingSuccessRate = founderBg.teamFundraisingOverride;
+      }
+      if (founderBg.teamAmountOverride) {
+        modifiers.fundraisingAmountMultiplier = founderBg.teamAmountOverride;
+      }
+    } else {
+      const baseAttrs = founderBg.attributes || { tech: 5, sales: 5, network: 5, domain: 5, resilience: 5, capital: 5 };
+      finalAttrs = applyDeltas(baseAttrs, deltas);
+    }
+    founderMods = computeEngineModifiers(finalAttrs, modifiers);
+  }
+
+  const startingCash = (config.initial.cash ?? 100000) + (founderMods.startingCashDelta ?? 0);
+  const basePipeline = ass.pipelineGrowth + (founderMods.pipelineBonus ?? 0);
+
   let state = {
     ...config.initial,
     price: ass.price,
     churn: ass.churnRate,
     cac: ass.targetCAC,
     conversionRate: ass.conversionRate,
-    pipeline: ass.pipelineGrowth,
+    pipeline: basePipeline,
     pipelineGrowth: ass.pipelineGrowth,
     mrrPerCustomer: ass.price,
     supportCost: ass.supportCost,
+    cash: startingCash,
+    maxAP: Math.max(2, 3 + (founderMods.apModifier ?? 0)),
+    founderMods,
   };
 
   const history = [state];
   const usedEvents = [];
   const usedWorlds = [];
-  let ap = 3;
-  const maxAP = 3;
+  let ap = state.maxAP ?? 3;
+  const baseMaxAP = state.maxAP ?? 3;
   let result = null;
   const monthLog = [];
 
@@ -84,8 +112,12 @@ function simulateGame(assumptions = null) {
     result = checkEndCondition(state, history);
     if (result) break;
 
-    // Reset AP
-    ap = maxAP;
+    // Reset AP (part-time penalty)
+    let effectiveMaxAP = state.maxAP ?? baseMaxAP;
+    if (founderMods.partTime && month <= (founderMods.partTimeMonths ?? 6)) {
+      effectiveMaxAP = Math.max(1, effectiveMaxAP - 1);
+    }
+    ap = effectiveMaxAP;
 
     // Draw and resolve events
     const events = drawMonthEvents(month, usedEvents);
@@ -141,20 +173,51 @@ function simulateGame(assumptions = null) {
 }
 
 // Different player profiles
+const defaultAss = { price: 49, churnRate: 5, targetCAC: 80, conversionRate: 15, pipelineGrowth: 20, supportCost: 5 };
+
+// Founder backgrounds to test
+const founderProfiles = {
+  'preset (Mira+Jonas)': {
+    attributes: { tech: 8, sales: 3, network: 4, domain: 6, resilience: 6, capital: 5 },
+    background: { gender: 'female', class: 'middle', ethnicity: 'majority', age: '30s', special: 'none' },
+    isPreset: true,
+    teamFundraisingOverride: 0.85,
+    teamAmountOverride: 0.9,
+  },
+  'privileged male': {
+    attributes: { tech: 5, sales: 7, network: 7, domain: 5, resilience: 4, capital: 7 },
+    background: { gender: 'male', class: 'privileged', ethnicity: 'majority', age: '30s', special: 'none' },
+  },
+  'working-class female': {
+    attributes: { tech: 6, sales: 4, network: 3, domain: 6, resilience: 8, capital: 3 },
+    background: { gender: 'female', class: 'working', ethnicity: 'majority', age: '20s', special: 'none' },
+  },
+  'black founder': {
+    attributes: { tech: 6, sales: 5, network: 3, domain: 5, resilience: 8, capital: 3 },
+    background: { gender: 'male', class: 'middle', ethnicity: 'black', age: '30s', special: 'none' },
+  },
+  'max privilege': {
+    attributes: { tech: 5, sales: 8, network: 8, domain: 5, resilience: 3, capital: 8 },
+    background: { gender: 'male', class: 'privileged', ethnicity: 'majority', age: '30s', special: 'serial' },
+  },
+  'max disadvantage': {
+    attributes: { tech: 6, sales: 4, network: 2, domain: 5, resilience: 10, capital: 3 },
+    background: { gender: 'female', class: 'working', ethnicity: 'black', age: '20s', special: 'solo' },
+  },
+  'no founder (baseline)': null,
+};
+
 const profiles = {
-  default: { price: 49, churnRate: 5, targetCAC: 80, conversionRate: 15, pipelineGrowth: 20, supportCost: 5 },
-  optimist: { price: 99, churnRate: 3, targetCAC: 40, conversionRate: 25, pipelineGrowth: 50, supportCost: 3 },
-  pessimist: { price: 29, churnRate: 10, targetCAC: 150, conversionRate: 8, pipelineGrowth: 10, supportCost: 8 },
-  realistic: { price: 59, churnRate: 7, targetCAC: 120, conversionRate: 12, pipelineGrowth: 15, supportCost: 6 },
+  default: defaultAss,
 };
 
 // Run simulations
 console.log(`\n🎮 Running ${NUM_GAMES} simulated games per profile...\n`);
 
-function runProfile(name, assumptions) {
+function runProfile(name, assumptions, founderBg = null) {
   const results = [];
   for (let i = 0; i < NUM_GAMES; i++) {
-    results.push(simulateGame(assumptions));
+    results.push(simulateGame(assumptions, founderBg));
   }
   
   const dead = results.filter(r => r.result === 'dead');
@@ -177,6 +240,7 @@ function runProfile(name, assumptions) {
   return results;
 }
 
+// Run baseline
 for (const [name, ass] of Object.entries(profiles)) {
   const results = runProfile(name, ass);
   if (name === 'default') {
@@ -191,4 +255,13 @@ for (const [name, ass] of Object.entries(profiles)) {
     }
     console.log('  └──');
   }
+}
+
+// Run founder profiles
+console.log('\n\n═══════════════════════════════════════════');
+console.log('FOUNDER ATTRIBUTE PROFILES (all with default assumptions)');
+console.log('═══════════════════════════════════════════');
+
+for (const [name, bg] of Object.entries(founderProfiles)) {
+  runProfile(name, defaultAss, bg ? { attributes: bg.attributes, background: bg.background } : null);
 }

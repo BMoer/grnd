@@ -47,6 +47,7 @@ export const useGameStore = create((set, get) => ({
   // ─── Game config ───
   classId: null,
   classConfig: null,
+  founderProfile: null,
   assumptions: {},
   forecast: [],
 
@@ -82,7 +83,11 @@ export const useGameStore = create((set, get) => ({
     if (!config) return;
     const defaults = {};
     config.assumptions.forEach(a => { defaults[a.key] = a.default; });
-    set({ classId, classConfig: config, assumptions: defaults, screen: 'setup' });
+    set({ classId, classConfig: config, assumptions: defaults, screen: 'character' });
+  },
+
+  setFounderProfile: (profile) => {
+    set({ founderProfile: profile, screen: 'setup' });
   },
 
   updateAssumption: (key, value) => {
@@ -90,10 +95,16 @@ export const useGameStore = create((set, get) => ({
   },
 
   startGame: () => {
-    const { classId, classConfig, assumptions } = get();
+    const { classId, classConfig, assumptions, founderProfile } = get();
     if (!classConfig) return;
 
     const forecast = generateSaaSForecast(assumptions);
+    const em = founderProfile?.engineModifiers ?? {};
+
+    // Apply founder modifiers to initial state
+    const startingCashDelta = em.startingCashDelta ?? 0;
+    const apMod = em.apModifier ?? 0;
+    const basePipeline = assumptions.pipelineGrowth ?? classConfig.initial.pipeline ?? 12;
 
     const initial = {
       ...classConfig.initial,
@@ -102,9 +113,13 @@ export const useGameStore = create((set, get) => ({
       cac: assumptions.targetCAC ?? classConfig.initial.cac ?? 80,
       conversionRate: assumptions.conversionRate ?? classConfig.initial.conversionRate ?? 15,
       supportCost: assumptions.supportCost ?? classConfig.initial.supportCost ?? 5,
-      pipeline: assumptions.pipelineGrowth ?? classConfig.initial.pipeline ?? 12,
-      pipelineGrowth: assumptions.pipelineGrowth ?? classConfig.initial.pipeline ?? 12,
+      pipeline: basePipeline + (em.pipelineBonus ?? 0),
+      pipelineGrowth: basePipeline,
       mrrPerCustomer: assumptions.price ?? classConfig.initial.price ?? 49,
+      cash: (classConfig.initial.cash ?? 100000) + startingCashDelta,
+      maxAP: Math.max(2, 3 + apMod),
+      // Store engine modifiers for ongoing use
+      founderMods: em,
     };
 
     set({
@@ -126,9 +141,13 @@ export const useGameStore = create((set, get) => ({
       log: [
         { text: `CloudKitchen initialized`, color: classConfig.color, prefix: '$' },
         { text: classConfig.tagline, color: 'muted' },
+        ...(founderProfile ? [
+          { text: `Difficulty: ${founderProfile.difficulty}/10 | Fundraising: ×${(em.fundraisingSuccessRate ?? 1).toFixed(2)}`, color: em.fundraisingSuccessRate < 0.8 ? 'danger' : 'muted', prefix: '◆' },
+          ...(em.partTime ? [{ text: 'Part-time for first 6 months (−1 AP)', color: 'caution', prefix: '!' }] : []),
+        ] : []),
         { text: `Win: ${classConfig.model.winBy}`, color: classConfig.color, prefix: '★' },
         { text: `Death: ${classConfig.model.deathBy}`, color: 'danger', prefix: '✗' },
-        { text: '3 AP per month. Choose wisely — what you skip resolves badly.', color: 'caution', prefix: '!' },
+        { text: `${initial.maxAP} AP per month. Choose wisely — what you skip resolves badly.`, color: 'caution', prefix: '!' },
       ],
       screen: 'game',
     });
@@ -153,7 +172,12 @@ export const useGameStore = create((set, get) => ({
     }
 
     // Reset AP (maxAP can be modified by events like burnout)
-    const effectiveMaxAP = monthly.maxAP ?? maxAP;
+    let effectiveMaxAP = monthly.maxAP ?? maxAP;
+    // Part-time founders lose 1 AP for first N months
+    const fm = monthly.founderMods || {};
+    if (fm.partTime && monthly.month <= (fm.partTimeMonths ?? 6)) {
+      effectiveMaxAP = Math.max(1, effectiveMaxAP - 1);
+    }
     const ap = effectiveMaxAP;
 
     // Check for world event (40% chance after month 2)
@@ -396,7 +420,7 @@ export const useGameStore = create((set, get) => ({
   restart: () => {
     set({
       screen: 'title',
-      classId: null, classConfig: null, assumptions: {}, forecast: [],
+      classId: null, classConfig: null, founderProfile: null, assumptions: {}, forecast: [],
       state: null, history: [], decisions: [], log: [],
       ap: 3, maxAP: 3,
       monthEvents: [], monthEventIndex: 0,

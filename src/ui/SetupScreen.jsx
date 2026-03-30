@@ -17,11 +17,11 @@ export default function SetupScreen() {
         {/* Header */}
         <div className="mb-6">
           <button
-            onClick={restart}
+            onClick={() => useGameStore.getState().selectClass(useGameStore.getState().classId)}
             className="text-[10px] uppercase tracking-widest mb-3 cursor-pointer"
             style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', background: 'none', border: 'none' }}
           >
-            ← Back
+            ← Back to Founders
           </button>
 
           <div className="flex items-center gap-2 mb-2">

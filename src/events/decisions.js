@@ -238,12 +238,20 @@ export const DECISION_EVENTS = [
     getChoices: () => [
       {
         text: 'Drop everything and apply',
-        dynamicFeedback: (s) => (s.product ?? 30) > 35
-          ? 'Approved. €50K hits your account in 6 weeks. Your product story was compelling because it\'s real.'
-          : 'Rejected. "Insufficient market validation." The reviewers weren\'t wrong. But the application forced you to articulate your model clearly.',
-        effects: (s) => (s.product ?? 30) > 35
-          ? { ...s, cash: s.cash + 50000, burnRate: s.burnRate + 200 }
-          : { ...s, product: s.product + 2 },
+        dynamicFeedback: (s) => {
+          const grantBonus = s.founderMods?.grantBonus ?? 0;
+          const threshold = Math.max(25, 35 - grantBonus * 30); // diversity criteria help
+          return (s.product ?? 30) > threshold
+            ? `Approved. €50K hits your account in 6 weeks.${grantBonus > 0 ? ' The diversity criteria in the call worked in your favor.' : ' Your product story was compelling because it\'s real.'}`
+            : 'Rejected. "Insufficient market validation." The reviewers weren\'t wrong. But the application forced you to articulate your model clearly.';
+        },
+        effects: (s) => {
+          const grantBonus = s.founderMods?.grantBonus ?? 0;
+          const threshold = Math.max(25, 35 - grantBonus * 30);
+          return (s.product ?? 30) > threshold
+            ? { ...s, cash: s.cash + 50000, burnRate: s.burnRate + 200 }
+            : { ...s, product: s.product + 2 };
+        },
       },
       {
         text: 'Apply but keep building — Jonas writes, Mira codes',
@@ -660,15 +668,30 @@ export const DECISION_EVENTS = [
         dynamicFeedback: (s) => {
           const mrr = s.totalMRR ?? 0;
           const product = s.product ?? 30;
-          if (mrr > 1000 && product > 35) return 'She\'s in. €100K for 8% equity. Your board just got a voice. But the cash buys you 10+ months of oxygen.';
-          if (mrr > 500 || product > 40) return '€50K. She likes the product but wants to see more traction. Half of what you wanted, but non-zero.';
-          return 'She passed. "Come back with €2K MRR." The rejection stings but the feedback is specific — that\'s worth something.';
+          const fundRate = s.founderMods?.fundraisingSuccessRate ?? 1;
+          const fundAmt = s.founderMods?.fundraisingAmountMultiplier ?? 1;
+          // Lower fundraising rate = higher thresholds needed
+          const mrrThreshHigh = Math.round(1000 / Math.max(0.3, fundRate));
+          const mrrThreshLow = Math.round(500 / Math.max(0.3, fundRate));
+          if (mrr > mrrThreshHigh && product > 35) {
+            const amount = Math.round(100000 * fundAmt);
+            return `She's in. €${(amount/1000).toFixed(0)}K for ${Math.round(8/fundAmt)}% equity.${fundRate < 0.8 ? ' It took twice as many meetings as it should have.' : ''} But the cash buys you oxygen.`;
+          }
+          if (mrr > mrrThreshLow || product > 40) {
+            const amount = Math.round(50000 * fundAmt);
+            return `€${(amount/1000).toFixed(0)}K. She likes the product but wants more traction.${fundRate < 0.8 ? ' The meeting felt harder than it should have been.' : ''}`;
+          }
+          return `She passed.${fundRate < 0.8 ? ' You noticed the questions focused on risks, not opportunity.' : ''} "Come back with more traction."`;
         },
         effects: (s) => {
           const mrr = s.totalMRR ?? 0;
           const product = s.product ?? 30;
-          if (mrr > 1000 && product > 35) return { ...s, cash: s.cash + 100000, burnRate: s.burnRate + 200 };
-          if (mrr > 500 || product > 40) return { ...s, cash: s.cash + 50000 };
+          const fundRate = s.founderMods?.fundraisingSuccessRate ?? 1;
+          const fundAmt = s.founderMods?.fundraisingAmountMultiplier ?? 1;
+          const mrrThreshHigh = Math.round(1000 / Math.max(0.3, fundRate));
+          const mrrThreshLow = Math.round(500 / Math.max(0.3, fundRate));
+          if (mrr > mrrThreshHigh && product > 35) return { ...s, cash: s.cash + Math.round(100000 * fundAmt), burnRate: s.burnRate + 200 };
+          if (mrr > mrrThreshLow || product > 40) return { ...s, cash: s.cash + Math.round(50000 * fundAmt) };
           return { ...s, product: s.product + 1 };
         },
       },
@@ -915,20 +938,35 @@ export const DECISION_EVENTS = [
           const mrr = s.totalMRR ?? 0;
           const churn = s.churn ?? 10;
           const ltvCac = s.ltvCacRatio ?? 0;
-          if (mrr > 8000 && churn < 6 && ltvCac > 2.5)
-            return '€500K raised at €3M pre. Your metrics held up under diligence. The cash changes everything — and so do the expectations.';
-          if (mrr > 4000 || (churn < 7 && ltvCac > 2))
-            return '€200K bridge round. Not a full Series A but it buys time. The VC wants to see "real traction" in 6 months.';
-          return 'They passed after 6 weeks of meetings. Two months of distracted leadership for nothing. But you know exactly what they need to see.';
+          const fundRate = s.founderMods?.fundraisingSuccessRate ?? 1;
+          const fundAmt = s.founderMods?.fundraisingAmountMultiplier ?? 1;
+          const tone = s.founderMods?.investorTone ?? 'neutral';
+          // Adjust thresholds based on fundraising rate
+          const t1 = Math.round(8000 / Math.max(0.3, fundRate));
+          const t2 = Math.round(4000 / Math.max(0.3, fundRate));
+          const toneNote = tone === 'prevention' ? ' The partners kept asking about downside scenarios.' : '';
+          if (mrr > t1 && churn < 6 && ltvCac > 2.5) {
+            const amount = Math.round(500000 * fundAmt);
+            return `€${(amount/1000).toFixed(0)}K raised.${toneNote} The cash changes everything — and so do the expectations.`;
+          }
+          if (mrr > t2 || (churn < 7 && ltvCac > 2)) {
+            const amount = Math.round(200000 * fundAmt);
+            return `€${(amount/1000).toFixed(0)}K bridge round.${toneNote} Not a full Series A but it buys time.`;
+          }
+          return `They passed.${toneNote} Two months of distracted leadership for nothing. But you know what they need to see.`;
         },
         effects: (s) => {
           const mrr = s.totalMRR ?? 0;
           const churn = s.churn ?? 10;
           const ltvCac = s.ltvCacRatio ?? 0;
-          if (mrr > 8000 && churn < 6 && ltvCac > 2.5)
-            return { ...s, cash: s.cash + 500000, burnRate: s.burnRate + 500 };
-          if (mrr > 4000 || (churn < 7 && ltvCac > 2))
-            return { ...s, cash: s.cash + 200000 };
+          const fundRate = s.founderMods?.fundraisingSuccessRate ?? 1;
+          const fundAmt = s.founderMods?.fundraisingAmountMultiplier ?? 1;
+          const t1 = Math.round(8000 / Math.max(0.3, fundRate));
+          const t2 = Math.round(4000 / Math.max(0.3, fundRate));
+          if (mrr > t1 && churn < 6 && ltvCac > 2.5)
+            return { ...s, cash: s.cash + Math.round(500000 * fundAmt), burnRate: s.burnRate + 500 };
+          if (mrr > t2 || (churn < 7 && ltvCac > 2))
+            return { ...s, cash: s.cash + Math.round(200000 * fundAmt) };
           return { ...s, product: Math.max(10, s.product - 2) };
         },
       },

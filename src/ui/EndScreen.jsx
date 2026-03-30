@@ -3,7 +3,7 @@ import ForecastChart from './components/ForecastChart.jsx';
 import { exportToExcel } from '../export/excelExport.js';
 
 export default function EndScreen() {
-  const { result, state, classConfig, history, decisions, forecast, assumptions, restart } = useGameStore();
+  const { result, state, classConfig, history, decisions, forecast, assumptions, founderProfile, restart } = useGameStore();
   if (!result || !state) return null;
 
   const accent = classConfig?.color ?? 'var(--color-saas)';
@@ -51,6 +51,26 @@ export default function EndScreen() {
           <MetricCard label="Customers" value={`${state.customers ?? 0}`} color={accent} />
           <MetricCard label="PMF Score" value={`${state.pmf ?? 0}/100`} color={(state.pmf ?? 0) >= 60 ? 'var(--color-growth)' : 'var(--color-caution)'} />
         </div>
+
+        {/* Founder Profile (for workshop debrief) */}
+        {founderProfile && (
+          <div className="p-4 rounded mb-4" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+            <div className="text-[10px] uppercase tracking-widest mb-2 font-medium" style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>
+              Your Founders
+            </div>
+            <div className="flex flex-wrap gap-3 text-[11px]" style={{ fontFamily: 'var(--font-mono)' }}>
+              <span>Difficulty: <span style={{ color: founderProfile.difficulty <= 4 ? 'var(--color-growth)' : founderProfile.difficulty <= 6 ? 'var(--color-caution)' : 'var(--color-danger)' }}>{founderProfile.difficulty}/10</span></span>
+              <span>Fundraising: <span style={{ color: founderProfile.engineModifiers?.fundraisingSuccessRate < 0.8 ? 'var(--color-danger)' : 'var(--color-text)' }}>×{(founderProfile.engineModifiers?.fundraisingSuccessRate ?? 1).toFixed(2)}</span></span>
+              {founderProfile.background && (
+                <>
+                  <span style={{ color: 'var(--color-text-muted)' }}>
+                    {founderProfile.background.gender} · {founderProfile.background.class} · {founderProfile.background.ethnicity} · {founderProfile.background.age}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Chart */}
         <div className="p-4 rounded mb-6" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>

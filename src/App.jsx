@@ -1,5 +1,6 @@
 import { useGameStore } from './store.js';
 import TitleScreen from './ui/TitleScreen.jsx';
+import CharacterScreen from './ui/CharacterScreen.jsx';
 import SetupScreen from './ui/SetupScreen.jsx';
 import GameScreen from './ui/GameScreen.jsx';
 import BoardMeeting from './ui/BoardMeeting.jsx';
@@ -10,6 +11,7 @@ export default function App() {
 
   switch (screen) {
     case 'title': return <TitleScreen />;
+    case 'character': return <CharacterScreen />;
     case 'setup': return <SetupScreen />;
     case 'game': return <GameScreen />;
     case 'board': return <BoardMeeting />;

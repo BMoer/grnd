@@ -78,6 +78,8 @@ export function getBoardPhase(month, hasFundraised) {
 export function generateBoardFeedback(deltas, phase, month, state = {}) {
   const feedback = [];
   const quarter = Math.ceil(month / 3);
+  const fm = state.founderMods || {};
+  const investorTone = fm.investorTone ?? 'neutral';
 
   const misses = deltas.filter(d => d.status === 'below');
   const wins = deltas.filter(d => d.status === 'above');
@@ -152,7 +154,9 @@ export function generateBoardFeedback(deltas, phase, month, state = {}) {
     if (misses.length >= 3) {
       feedback.push({
         speaker: 'Investor',
-        text: `Three metrics off this quarter. That's not variance — that's a signal. What's the one thing you'd fix if you could only fix one?`,
+        text: investorTone === 'prevention'
+          ? `Three metrics off. What's your contingency if this trend continues? How much runway do you have if nothing improves?`
+          : `Three metrics off this quarter. That's not variance — that's a signal. What's the one thing you'd fix if you could only fix one?`,
         tone: 'critical',
       });
       feedback.push({
@@ -164,17 +168,28 @@ export function generateBoardFeedback(deltas, phase, month, state = {}) {
       const worst = misses.reduce((a, b) => Math.abs(a.deltaPct) > Math.abs(b.deltaPct) ? a : b);
       feedback.push({
         speaker: 'Investor',
-        text: `${worst.label} missed by ${Math.abs(worst.deltaPct)}%. ${getInvestorAdvice(worst.key)} What's the plan for next quarter?`,
+        text: investorTone === 'prevention'
+          ? `${worst.label} missed by ${Math.abs(worst.deltaPct)}%. What's the worst case if this doesn't recover? How are you protecting against further decline?`
+          : `${worst.label} missed by ${Math.abs(worst.deltaPct)}%. ${getInvestorAdvice(worst.key)} What's the plan for next quarter?`,
         tone: misses.length > 1 ? 'critical' : 'warning',
       });
     }
 
     if (wins.length > 0 && misses.length === 0) {
-      feedback.push({
-        speaker: 'Investor',
-        text: `Solid quarter. ${wins[0].label} outperforming by ${Math.abs(wins[0].deltaPct)}%. This is the kind of trajectory that makes the next round easier. Don't let up.`,
-        tone: 'positive',
-      });
+      if (investorTone === 'prevention') {
+        // Prevention framing: focus on risks even when things are good (Kanze et al.)
+        feedback.push({
+          speaker: 'Investor',
+          text: `Numbers look good. But what happens if churn spikes next quarter? What's your downside protection? I need to understand the risks before I get excited.`,
+          tone: 'warning',
+        });
+      } else {
+        feedback.push({
+          speaker: 'Investor',
+          text: `Solid quarter. ${wins[0].label} outperforming by ${Math.abs(wins[0].deltaPct)}%. This is the kind of trajectory that makes the next round easier. Don't let up.`,
+          tone: 'positive',
+        });
+      }
     }
 
     // PMF commentary (only if not already critical — avoid contradictions)
