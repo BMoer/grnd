@@ -103,6 +103,7 @@ export const useGameStore = create((set, get) => ({
       conversionRate: assumptions.conversionRate ?? classConfig.initial.conversionRate ?? 15,
       supportCost: assumptions.supportCost ?? classConfig.initial.supportCost ?? 5,
       pipeline: assumptions.pipelineGrowth ?? classConfig.initial.pipeline ?? 12,
+      pipelineGrowth: assumptions.pipelineGrowth ?? classConfig.initial.pipeline ?? 12,
       mrrPerCustomer: assumptions.price ?? classConfig.initial.price ?? 49,
     };
 
@@ -151,8 +152,9 @@ export const useGameStore = create((set, get) => ({
       monthly.churn = Math.min(20, (monthly.churn ?? 5) + 0.5);
     }
 
-    // Reset AP
-    const ap = maxAP;
+    // Reset AP (maxAP can be modified by events like burnout)
+    const effectiveMaxAP = monthly.maxAP ?? maxAP;
+    const ap = effectiveMaxAP;
 
     // Check for world event (40% chance after month 2)
     let worldEvent = null;
@@ -186,7 +188,7 @@ export const useGameStore = create((set, get) => ({
         log: [
           ...s.log,
           { text: `── Month ${monthly.month} ──`, color: classConfig.color, prefix: '▸' },
-          { text: `AP: ${ap}/${maxAP}`, color: 'muted' },
+          { text: `AP: ${ap}/${effectiveMaxAP}`, color: 'muted' },
           { text: `${worldEvent.title}`, color: 'caution', prefix: '!' },
         ],
       }));
@@ -208,7 +210,7 @@ export const useGameStore = create((set, get) => ({
       log: [
         ...s.log,
         { text: `── Month ${monthly.month} ──`, color: classConfig.color, prefix: '▸' },
-        { text: `AP: ${ap}/${maxAP}`, color: 'muted' },
+        { text: `AP: ${ap}/${effectiveMaxAP}`, color: 'muted' },
       ],
     }));
 
@@ -220,7 +222,7 @@ export const useGameStore = create((set, get) => ({
     if (isBoardMeetingMonth(monthly.month)) {
       const deltas = calculateDeltas(forecast, monthly, monthly.month);
       const phase = getBoardPhase(monthly.month, false);
-      const feedback = generateBoardFeedback(deltas, phase, monthly.month);
+      const feedback = generateBoardFeedback(deltas, phase, monthly.month, monthly);
       set({ boardData: { deltas, phase, feedback, quarter: Math.ceil(monthly.month / 3) }, screen: 'board' });
       return;
     }
@@ -277,7 +279,7 @@ export const useGameStore = create((set, get) => ({
         isWorld: false,
         wasDefault: false,
       }],
-      usedEvents: [...s.usedEvents, currentEvent.id],
+      usedEvents: [...s.usedEvents, currentEvent.repeatable ? `${currentEvent.id}_${state.month}` : currentEvent.id],
       currentEvent: null,
       log: [
         ...s.log,
@@ -313,7 +315,7 @@ export const useGameStore = create((set, get) => ({
         isWorld: false,
         wasDefault: true,
       }],
-      usedEvents: [...s.usedEvents, currentEvent.id],
+      usedEvents: [...s.usedEvents, currentEvent.repeatable ? `${currentEvent.id}_${state.month}` : currentEvent.id],
       currentEvent: null,
       log: [
         ...s.log,
@@ -366,12 +368,24 @@ export const useGameStore = create((set, get) => ({
     if (isBoardMeetingMonth(state.month)) {
       const deltas = calculateDeltas(forecast, state, state.month);
       const phase = getBoardPhase(state.month, false);
-      const feedback = generateBoardFeedback(deltas, phase, state.month);
+      const feedback = generateBoardFeedback(deltas, phase, state.month, state);
       set({ boardData: { deltas, phase, feedback, quarter: Math.ceil(state.month / 3) }, screen: 'board' });
       return;
     }
 
     get()._drawMonthEvents();
+  },
+
+  reviseForecast: (newAssumptions) => {
+    const forecast = generateSaaSForecast(newAssumptions);
+    set(s => ({
+      assumptions: newAssumptions,
+      forecast,
+      log: [
+        ...s.log,
+        { text: 'Forecast revised. New plan set.', color: 'plan', prefix: '📊' },
+      ],
+    }));
   },
 
   closeBoardMeeting: () => {

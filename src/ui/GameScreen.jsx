@@ -14,8 +14,8 @@ export default function GameScreen() {
   if (!state || !classConfig) return null;
 
   const accent = classConfig.color;
-  const netBurn = Math.max(0, (state.burnRate ?? 0) - (state.revenue ?? 0));
-  const runway = netBurn > 0 ? Math.floor((state.cash ?? 0) / netBurn) : 99;
+  const netBurn = state.netBurn ?? Math.max(0, (state.totalBurn ?? state.burnRate ?? 0) - (state.revenue ?? 0));
+  const runway = state.runway ?? (netBurn > 0 ? Math.floor((state.cash ?? 0) / netBurn) : 99);
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-canvas)' }}>

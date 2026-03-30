@@ -75,17 +75,20 @@ export const saas = {
   // These are HARDER than what players assume. That's the point.
   corridors: {
     price: { min: 19, max: 299, center: 49 }, // player controls this
-    churnRate: { min: 4, max: 20, center: 9 },       // SMB SaaS churn is brutal
-    cac: { min: 50, max: 300, center: 130 },          // niche B2B acquisition is expensive
-    conversionRate: { min: 3, max: 30, center: 10 },  // restaurant owners don't convert easy
+    churnRate: { min: 3, max: 20, center: 8 },          // SMB SaaS churn is brutal
+    cac: { min: 50, max: 300, center: 140 },            // niche B2B acquisition is expensive
+    conversionRate: { min: 3, max: 25, center: 9 },    // restaurant owners don't convert easy
     pipelineGrowth: { min: 3, max: 40, center: 12 },  // organic growth is slow
+    // Non-linear price sensitivity for restaurant SaaS
+    // Toast/Square/7shifts: €30-70/mo for SMB. Above €80: real friction. Above €130: enterprise-only.
+    priceThresholds: { comfortable: 49, friction: 79, cliff: 109 },
   },
 
   // Initial game state
   initial: {
     month: 0,
     cash: 100000,
-    burnRate: 8000,
+    burnRate: 7000,
     revenue: 0,
     totalMRR: 0,
     customers: 0,
@@ -119,7 +122,7 @@ export const saas = {
     s.churn,
     s.cac || 0,
     s.ltvCacRatio || 0,
-    s.burnRate,
+    s.totalBurn ?? s.burnRate,
     s.runway ?? 0,
   ],
   formatRow: (r) => [
@@ -127,9 +130,9 @@ export const saas = {
     `€${(r[1] ?? 0).toLocaleString('de-DE')}`,
     `€${(r[2] ?? 0).toLocaleString('de-DE')}`,
     `${r[3]}`,
-    `${r[4]}%`,
-    r[5] ? `€${r[5]}` : '–',
-    `${r[6]}x`,
+    `${typeof r[4] === 'number' ? r[4].toFixed(1) : r[4]}%`,
+    r[5] ? `€${Math.round(r[5])}` : '–',
+    `${typeof r[6] === 'number' ? r[6].toFixed(1) : r[6]}x`,
     `€${(r[7] ?? 0).toLocaleString('de-DE')}`,
     r[8] > 24 ? '24+' : `${r[8]} mo`,
   ],
