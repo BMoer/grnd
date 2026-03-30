@@ -12,7 +12,7 @@ export default function SetupScreen() {
   const month6 = forecast[6] ?? {};
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'var(--color-canvas)' }}>
+    <div className="min-h-screen flex items-center justify-center p-4 md:p-6" style={{ background: 'var(--color-canvas)' }}>
       <div className="w-full max-w-2xl">
         {/* Header */}
         <div className="mb-6">

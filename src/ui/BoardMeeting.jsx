@@ -36,7 +36,7 @@ export default function BoardMeeting() {
   };
 
   return (
-    <div className="min-h-screen p-6" style={{ background: 'var(--color-canvas)' }}>
+    <div className="min-h-screen p-4 md:p-6" style={{ background: 'var(--color-canvas)' }}>
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="mb-6">

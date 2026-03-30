@@ -99,16 +99,22 @@ export function advanceMonth(state, classConfig) {
   conversionRate = Math.max(corridorConv.min, Math.min(corridorConv.max, conversionRate));
 
   // ─── Pipeline ───
-  // Pipeline grows from base growth + organic (existing customers as referrals)
-  // Decays slightly without active marketing
-  // Reality corridor pull: pipeline growth drifts toward realistic center
+  // Pipeline grows from base growth + organic referrals.
+  // KEY MECHANIC: Pipeline requires ACTIVE sales effort.
+  // Without sales investment (events, hiring), pipeline decays aggressively.
+  // This prevents the "just build product" strategy — you need customers to survive.
   const corridorPipe = corridors.pipelineGrowth || { min: 3, max: 40, center: 12 };
   const rawGrowth = state.pipelineGrowth ?? 12;
-  // Pull growth toward corridor center (30% pull — optimistic pipeline gets punished)
+  // Pull growth toward corridor center
   const baseGrowth = rawGrowth * 0.7 + corridorPipe.center * 0.3;
-  const organicReferrals = Math.floor((state.customers ?? 0) * 0.03); // 3% of customers refer
-  const pipelineDecay = 0.8; // 20% monthly decay without effort
-  let pipeline = Math.round((state.pipeline ?? 12) * pipelineDecay + baseGrowth * 0.5 + organicReferrals);
+  // Organic referrals: happy customers bring more (product quality matters here too)
+  const referralRate = productQuality > 50 ? 0.04 : 0.02;
+  const organicReferrals = Math.floor((state.customers ?? 0) * referralRate);
+  // Pipeline decay: 25% without active sales effort (was 20% — harsher)
+  // salesEffort tracks whether recent events invested in sales/pipeline
+  const salesEffort = state.salesEffort ?? 0; // 0-1, set by events
+  const pipelineDecay = 0.75 + salesEffort * 0.1; // 0.75 (no effort) to 0.85 (active sales)
+  let pipeline = Math.round((state.pipeline ?? 12) * pipelineDecay + baseGrowth * 0.4 + organicReferrals);
   // Reality corridor pull on pipeline growth
   const corridorPipeline = corridors.pipelineGrowth || { min: 3, max: 40, center: 12 };
   const pipelineCap = corridorPipeline.max + Math.floor(month * 1.5); // slowly expanding ceiling
@@ -149,6 +155,10 @@ export function advanceMonth(state, classConfig) {
   const ltv = actualChurn > 0 ? Math.round(price / (actualChurn / 100)) : price * 100;
   const ltvCacRatio = actualCAC > 0 ? Math.round((ltv / actualCAC) * 10) / 10 : 0;
   const grossMargin = revenue > 0 ? Math.round(((revenue - supportCosts - infraCost) / revenue) * 100) : 0;
+
+  // ─── Sales effort decay ───
+  // salesEffort decays each month — you need ongoing sales investment
+  const salesEffortDecayed = Math.max(0, (state.salesEffort ?? 0) - 0.3);
 
   // ─── Product quality natural decay ───
   // Without active investment, product quality slowly degrades (tech debt, market moves)
@@ -195,6 +205,7 @@ export function advanceMonth(state, classConfig) {
     ltvCacRatio,
     grossMargin,
     price,
+    salesEffort: salesEffortDecayed,
     cac: Math.round(actualCAC),
     churn: Math.round(actualChurn * 10) / 10,
     conversionRate: Math.round(conversionRate * 10) / 10,

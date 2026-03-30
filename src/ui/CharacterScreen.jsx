@@ -113,13 +113,13 @@ export default function CharacterScreen() {
           <div className="p-4 rounded mb-4" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
             <div className="text-sm font-bold mb-1" style={{ fontFamily: 'var(--font-display)' }}>{preset.label}</div>
             <p className="text-[12px] mb-3" style={{ color: 'var(--color-text-secondary)' }}>{preset.description}</p>
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+            <div className="grid grid-cols-6 gap-1 md:gap-2">
               {ATTR_KEYS.map(k => (
                 <div key={k} className="text-center">
-                  <div className="text-[9px] uppercase tracking-widest mb-0.5" style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  <div className="text-[8px] md:text-[9px] uppercase tracking-widest mb-0.5" style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>
                     {ATTRIBUTES[k].abbr}
                   </div>
-                  <div className="text-base font-bold tabular-nums" style={{ fontFamily: 'var(--font-mono)', color: accent }}>
+                  <div className="text-sm md:text-base font-bold tabular-nums" style={{ fontFamily: 'var(--font-mono)', color: accent }}>
                     {finalAttrs[k]}
                   </div>
                 </div>
@@ -295,7 +295,7 @@ function BackgroundSelect({ label, options, value, onChange, accent }) {
           <button
             key={o.key}
             onClick={() => onChange(o.key)}
-            className="px-3 py-1.5 rounded text-[11px] cursor-pointer transition-colors"
+            className="px-3 py-2 rounded text-[11px] cursor-pointer transition-colors min-h-[44px] flex items-center"
             style={{
               background: value === o.key ? accent : 'var(--color-raised)',
               color: value === o.key ? '#fff' : 'var(--color-text-secondary)',

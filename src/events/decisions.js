@@ -41,7 +41,7 @@ export const DECISION_EVENTS = [
           totalMRR: (s.totalMRR ?? 0) + 145,
           revenue: (s.revenue ?? 0) + 145,
           cac: Math.max(30, (s.cac || 80) - 15),
-          pipeline: s.pipeline + 8,
+          pipeline: s.pipeline + 8, salesEffort: Math.min(1, (s.salesEffort ?? 0) + 0.5),
           product: s.product + 2,
         }),
         feedback: '5 signups in week one. Low price means low switching cost — they\'ll leave just as easily as they came.',
@@ -71,7 +71,7 @@ export const DECISION_EVENTS = [
           totalMRR: (s.totalMRR ?? 0) + 165,
           revenue: (s.revenue ?? 0) + 165,
           cac: (s.cac || 80),
-          pipeline: s.pipeline + 4,
+          pipeline: s.pipeline + 4, salesEffort: Math.min(1, (s.salesEffort ?? 0) + 0.5),
           burnRate: s.burnRate + 500,
           product: s.product + 1,
         }),
@@ -154,7 +154,7 @@ export const DECISION_EVENTS = [
         text: 'Sales first — "revenue validates faster than features"',
         effects: (s) => ({
           ...s,
-          pipeline: s.pipeline + 10,
+          pipeline: s.pipeline + 10, salesEffort: Math.min(1, (s.salesEffort ?? 0) + 0.5),
           cac: Math.max(30, (s.cac || 80) - 10),
           burnRate: s.burnRate + 500,
         }),
@@ -165,7 +165,7 @@ export const DECISION_EVENTS = [
         effects: (s) => ({
           ...s,
           product: s.product + 3,
-          pipeline: s.pipeline + 4,
+          pipeline: s.pipeline + 4, salesEffort: Math.min(1, (s.salesEffort ?? 0) + 0.5),
         }),
         feedback: 'Both fronts moved. Neither dramatically. The weekly sync became the most useful meeting you have.',
       },
@@ -220,7 +220,7 @@ export const DECISION_EVENTS = [
           product: s.product + 4,
           conversionRate: Math.min(30, s.conversionRate + 1),
         }),
-        feedback: 'Moved on both fronts, neither with full conviction. Sometimes splitting focus means splitting impact.',
+        feedback: 'Moved on both fronts, neither with full conviction. The weekly standup between interview notes and sprint tasks felt productive. Whether it was is a different question.',
       },
     ],
   },
@@ -356,7 +356,7 @@ export const DECISION_EVENTS = [
         effects: (s) => ({
           ...s,
           burnRate: s.burnRate + 2000,
-          pipeline: s.pipeline + 8,
+          pipeline: s.pipeline + 8, salesEffort: Math.min(1, (s.salesEffort ?? 0) + 0.5),
           cac: Math.max(30, (s.cac || 80) - 10),
         }),
         feedback: 'Hired. Pipeline grows 40% in first month. But freelancers don\'t build institutional knowledge.',
@@ -472,7 +472,7 @@ export const DECISION_EVENTS = [
         effects: (s) => ({
           ...s,
           cac: Math.max(30, (s.cac || 80) - 15),
-          pipeline: s.pipeline + 6,
+          pipeline: s.pipeline + 6, salesEffort: Math.min(1, (s.salesEffort ?? 0) + 0.5),
           conversionRate: Math.min(30, s.conversionRate + 1),
         }),
         feedback: 'CAC dropped. Specific messaging speaks to someone. Generic messaging speaks to everyone and convinces nobody.',
@@ -505,7 +505,7 @@ export const DECISION_EVENTS = [
         effects: (s) => (s.product ?? 30) > 40
           ? {
               ...s,
-              pipeline: s.pipeline + 15,
+              pipeline: s.pipeline + 15, salesEffort: Math.min(1, (s.salesEffort ?? 0) + 0.5),
               customers: s.customers + 4,
               totalMRR: (s.totalMRR ?? 0) + (s.mrrPerCustomer || 49) * 4,
               revenue: (s.revenue ?? 0) + (s.mrrPerCustomer || 49) * 4,
@@ -528,7 +528,7 @@ export const DECISION_EVENTS = [
           product: s.product + 4,
           conversionRate: Math.min(30, s.conversionRate + 1),
         }),
-        feedback: '4 weeks later: real, but concentrated in one segment. The patience bought you precision.',
+        feedback: '4 weeks later: the inbound was real, but concentrated in fast-casual. The patience bought you a wedge — one segment where you\'re the obvious choice.',
       },
       {
         text: 'Fundraise on the momentum',
@@ -631,7 +631,7 @@ export const DECISION_EVENTS = [
           revenue: (s.revenue ?? 0) + (s.mrrPerCustomer || 49) * 3,
           burnRate: s.burnRate + 1500,
           conversionRate: Math.max(3, s.conversionRate - 2),
-          pipeline: s.pipeline + 6,
+          pipeline: s.pipeline + 6, salesEffort: Math.min(1, (s.salesEffort ?? 0) + 0.5),
         }),
         feedback: 'New segment, different expectations. Conversion dropped. "Same product, new market" is never actually the same product.',
       },
@@ -700,7 +700,7 @@ export const DECISION_EVENTS = [
         effects: (s) => ({
           ...s,
           product: s.product + 2,
-          pipeline: s.pipeline + 3,
+          pipeline: s.pipeline + 3, salesEffort: Math.min(1, (s.salesEffort ?? 0) + 0.5),
         }),
         feedback: 'She introduced you to 3 restaurant owners in her network. No check, but warm leads from a credible source. Sometimes the network is worth more.',
       },
@@ -795,7 +795,7 @@ export const DECISION_EVENTS = [
         effects: (s) => ({
           ...s,
           cac: Math.max(20, (s.cac || 80) - 25),
-          pipeline: s.pipeline + 10,
+          pipeline: s.pipeline + 10, salesEffort: Math.min(1, (s.salesEffort ?? 0) + 0.5),
           conversionRate: Math.min(30, s.conversionRate + 3),
           product: s.product + 4,
           burnRate: s.burnRate + 500,
@@ -808,7 +808,7 @@ export const DECISION_EVENTS = [
           ...s,
           burnRate: s.burnRate + 1500,
           product: Math.max(10, s.product - 1),
-          pipeline: s.pipeline + 4,
+          pipeline: s.pipeline + 4, salesEffort: Math.min(1, (s.salesEffort ?? 0) + 0.5),
         }),
         feedback: 'Two products, one team. Engineering velocity dropped. But revenue diversification reduces concentration risk.',
       },
@@ -852,7 +852,7 @@ export const DECISION_EVENTS = [
           customers: Math.max(0, s.customers - 1),
           totalMRR: Math.round((s.totalMRR ?? 0) * 0.75),
           revenue: Math.round((s.revenue ?? 0) * 0.75),
-          pipeline: s.pipeline + 8,
+          pipeline: s.pipeline + 8, salesEffort: Math.min(1, (s.salesEffort ?? 0) + 0.5),
           cac: Math.max(30, (s.cac || 80) - 10),
         }),
         feedback: 'Painful. But 25% concentration was the real problem. You redirected that energy into pipeline. Healthier long-term.',
@@ -896,7 +896,7 @@ export const DECISION_EVENTS = [
         effects: (s) => ({
           ...s,
           burnRate: s.burnRate + 2000,
-          pipeline: s.pipeline + 8,
+          pipeline: s.pipeline + 8, salesEffort: Math.min(1, (s.salesEffort ?? 0) + 0.5),
           customers: s.customers + 2,
           totalMRR: (s.totalMRR ?? 0) + (s.mrrPerCustomer || 49) * 2,
           revenue: (s.revenue ?? 0) + (s.mrrPerCustomer || 49) * 2,
@@ -1021,7 +1021,7 @@ export const DECISION_EVENTS = [
         text: 'Counter: strategic partnership instead of acquisition',
         effects: (s) => ({
           ...s,
-          pipeline: s.pipeline + 10,
+          pipeline: s.pipeline + 10, salesEffort: Math.min(1, (s.salesEffort ?? 0) + 0.5),
           customers: s.customers + 3,
           totalMRR: (s.totalMRR ?? 0) + (s.mrrPerCustomer || 49) * 3,
           revenue: (s.revenue ?? 0) + (s.mrrPerCustomer || 49) * 3,
@@ -1110,7 +1110,7 @@ export const DECISION_EVENTS = [
           ...s,
           product: s.product + 5,
           burnRate: s.burnRate + 1500,
-          pipeline: s.pipeline + 4,
+          pipeline: s.pipeline + 4, salesEffort: Math.min(1, (s.salesEffort ?? 0) + 0.5),
         }),
         feedback: 'AI demand prediction — your differentiator. Big companies can\'t move this fast. But you\'re betting on a feature advantage that might be temporary.',
       },
@@ -1120,7 +1120,7 @@ export const DECISION_EVENTS = [
           ? 'They\'re interested. Your technology is complementary. Acquisition talks begin. Not the exit you planned, but possibly the right one.'
           : 'They passed. "We\'ll build it internally." You just showed your hand without getting a card.',
         effects: (s) => (s.totalMRR ?? 0) > 8000
-          ? { ...s, cash: s.cash + 100000, pipeline: s.pipeline + 5 }
+          ? { ...s, cash: s.cash + 100000, pipeline: s.pipeline + 5, salesEffort: Math.min(1, (s.salesEffort ?? 0) + 0.5) }
           : { ...s, product: Math.max(10, s.product - 1) },
       },
     ],
@@ -1141,7 +1141,7 @@ export const DECISION_EVENTS = [
         text: 'Expand to DACH — German-speaking markets first',
         effects: (s) => ({
           ...s,
-          pipeline: s.pipeline + 12,
+          pipeline: s.pipeline + 12, salesEffort: Math.min(1, (s.salesEffort ?? 0) + 0.5),
           customers: s.customers + 3,
           totalMRR: (s.totalMRR ?? 0) + (s.mrrPerCustomer || 49) * 3,
           revenue: (s.revenue ?? 0) + (s.mrrPerCustomer || 49) * 3,
@@ -1185,7 +1185,7 @@ export const DECISION_EVENTS = [
         effects: (s) => ({
           ...s,
           burnRate: s.burnRate + 3000,
-          pipeline: s.pipeline + 10,
+          pipeline: s.pipeline + 10, salesEffort: Math.min(1, (s.salesEffort ?? 0) + 0.5),
           customers: s.customers + 2,
           totalMRR: (s.totalMRR ?? 0) + (s.mrrPerCustomer || 49) * 2,
           revenue: (s.revenue ?? 0) + (s.mrrPerCustomer || 49) * 2,
@@ -1235,7 +1235,7 @@ export const DECISION_EVENTS = [
         text: 'Build to sell — maximize metrics for acquisition',
         effects: (s) => ({
           ...s,
-          pipeline: s.pipeline + 5,
+          pipeline: s.pipeline + 5, salesEffort: Math.min(1, (s.salesEffort ?? 0) + 0.5),
           product: s.product + 3,
           churn: Math.max(3, s.churn - 0.5),
         }),
@@ -1255,7 +1255,7 @@ export const DECISION_EVENTS = [
         text: 'Build to raise — prep the Series A pitch',
         effects: (s) => ({
           ...s,
-          pipeline: s.pipeline + 8,
+          pipeline: s.pipeline + 8, salesEffort: Math.min(1, (s.salesEffort ?? 0) + 0.5),
           burnRate: s.burnRate + 1000,
           customers: s.customers + 2,
           totalMRR: (s.totalMRR ?? 0) + (s.mrrPerCustomer || 49) * 2,
@@ -1272,7 +1272,15 @@ export const DECISION_EVENTS = [
     repeatable: true,
     months: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
     title: 'Support Escalation',
-    getText: (s) => `Your Slack is blowing up. ${Math.max(1, Math.round((s.customers ?? 5) * 0.2))} customers have the same issue: the inventory sync broke after last night's deploy. They're losing money right now.`,
+    getText: (s) => {
+      const variants = [
+        `Your Slack is blowing up. ${Math.max(1, Math.round((s.customers ?? 5) * 0.2))} customers have the same issue: the inventory sync broke after last night's deploy. They're losing money right now.`,
+        `A critical bug: the demand prediction algorithm recommended double-ordering for ${Math.max(1, Math.round((s.customers ?? 5) * 0.15))} restaurants. Fridges are full, margins are gone, and your phone won't stop ringing.`,
+        `The payment integration went down for 6 hours overnight. ${Math.max(1, Math.round((s.customers ?? 5) * 0.1))} restaurants couldn't process supplier orders this morning. They found out from their suppliers, not from you.`,
+        `A data migration corrupted menu prices for several customers. Some charged their guests €0.50 for a main course. The screenshots are making the rounds in a restaurant owners' WhatsApp group.`,
+      ];
+      return variants[Math.floor(Math.random() * variants.length)];
+    },
     apCost: 1,
     defaultOutcome: {
       effects: (s) => ({
@@ -1280,7 +1288,7 @@ export const DECISION_EVENTS = [
         churn: Math.min(20, s.churn + 1.5),
         product: Math.max(10, s.product - 2),
       }),
-      feedback: 'It took 48 hours to acknowledge the issue. Two restaurants over-ordered €3K in produce. Trust doesn\'t recover from silence.',
+      feedback: 'It took 48 hours to acknowledge the issue. Trust doesn\'t recover from silence. Two customers started evaluating alternatives.',
     },
     getChoices: () => [
       {
@@ -1294,13 +1302,14 @@ export const DECISION_EVENTS = [
         feedback: 'Fixed in 4 hours. Personal calls to every affected customer. One said "this is why I chose a small company." The crisis became a retention moment.',
       },
       {
-        text: 'Roll back the deploy, post a status page update',
+        text: 'Roll back, post status update, offer credit',
         effects: (s) => ({
           ...s,
           product: s.product + 1,
-          churn: Math.min(20, s.churn + 0.5),
+          cash: s.cash - Math.round((s.customers ?? 5) * 20),
+          churn: Math.max(3, s.churn - 0.3),
         }),
-        feedback: 'Rolled back in 2 hours. Professional, but impersonal. One customer tweeted about it. Not great.',
+        feedback: 'Rolled back in 2 hours. The credit cost money but showed accountability. Professional response, but nobody felt personally cared for.',
       },
     ],
   },
@@ -1312,7 +1321,13 @@ export const DECISION_EVENTS = [
     title: 'Upsell Opportunity',
     getText: (s) => {
       const mrr = s.mrrPerCustomer || s.price || 49;
-      return `Three of your most active customers asked for the same thing: a premium analytics dashboard. They'd pay ${Math.round(mrr * 0.5)} more per month for it.`;
+      const variants = [
+        `Three of your most active customers asked for the same thing: a premium analytics dashboard. They'd pay €${Math.round(mrr * 0.5)} more per month for it.`,
+        `A customer called: "I'd pay double if you could predict staffing needs too." Two others emailed the same week with similar requests. Pattern?`,
+        `Your usage data shows a segment of power users hitting the API limits daily. They'd clearly pay for a higher tier. The question is whether to build it.`,
+        `Restaurant chains keep asking for multi-location reporting. Single-location customers don't need it. A premium tier could capture both without alienating either.`,
+      ];
+      return variants[Math.floor(Math.random() * variants.length)];
     },
     apCost: 1,
     defaultOutcome: {
@@ -1361,7 +1376,7 @@ export const DECISION_EVENTS = [
           const addedMRR = (s.mrrPerCustomer || 49) * 3;
           return {
             ...s,
-            pipeline: s.pipeline + 15,
+            pipeline: s.pipeline + 15, salesEffort: Math.min(1, (s.salesEffort ?? 0) + 0.5),
             customers: s.customers + 3,
             totalMRR: Math.round(((s.totalMRR ?? 0) + addedMRR) * 0.85),
             revenue: Math.round(((s.revenue ?? 0) + addedMRR) * 0.85),
@@ -1374,7 +1389,7 @@ export const DECISION_EVENTS = [
         text: 'Counter — flat fee per referral, no revenue share',
         effects: (s) => ({
           ...s,
-          pipeline: s.pipeline + 8,
+          pipeline: s.pipeline + 8, salesEffort: Math.min(1, (s.salesEffort ?? 0) + 0.5),
           customers: s.customers + 1,
           totalMRR: (s.totalMRR ?? 0) + (s.mrrPerCustomer || 49),
           revenue: (s.revenue ?? 0) + (s.mrrPerCustomer || 49),
@@ -1439,9 +1454,10 @@ export const DECISION_EVENTS = [
     getText: (s) => {
       const runway = s.runway ?? 12;
       const cash = s.cash ?? 50000;
-      return runway < 6
-        ? `${runway} months of runway. You and Mira had THE conversation last night. The one where you look at the bank account and do the math in silence.`
-        : `€${cash.toLocaleString('de-DE')} in the bank. You're not dying, but you're not comfortable either. Time to make a conscious choice about the next 6 months.`;
+      if (runway < 4) return `${runway} months. That's not a runway, that's a countdown. Jonas checked the bank account three times today. Mira stopped talking about next quarter.`;
+      if (runway < 6) return `${runway} months of runway. You and Mira had THE conversation last night. The one where you look at the bank account and do the math in silence.`;
+      if (runway < 10) return `€${cash.toLocaleString('de-DE')} in the bank. Not critical, but the burn rate ticks upward every month. What's the plan?`;
+      return `€${cash.toLocaleString('de-DE')} in the bank. Comfortable, but comfort breeds complacency. Every month without growth investment is a month your competitors use to catch up.`;
     },
     apCost: 1,
     defaultOutcome: {
@@ -1466,7 +1482,7 @@ export const DECISION_EVENTS = [
         text: 'Revenue push — 100% focus on closing deals',
         effects: (s) => ({
           ...s,
-          pipeline: s.pipeline + 6,
+          pipeline: s.pipeline + 6, salesEffort: Math.min(1, (s.salesEffort ?? 0) + 0.5),
           customers: s.customers + 1,
           totalMRR: (s.totalMRR ?? 0) + (s.mrrPerCustomer || 49),
           revenue: (s.revenue ?? 0) + (s.mrrPerCustomer || 49),

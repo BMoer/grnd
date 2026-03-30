@@ -51,7 +51,7 @@ export default function EventCard() {
               <button
                 key={i}
                 onClick={() => makeChoice(ch)}
-                className="text-left px-4 py-3 rounded text-sm leading-snug cursor-pointer transition-colors duration-150"
+                className="text-left px-4 py-3.5 rounded text-sm leading-snug cursor-pointer transition-colors duration-150 min-h-[44px]"
                 style={{
                   background: 'var(--color-surface)',
                   border: '1px solid var(--color-border)',
