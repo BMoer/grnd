@@ -75,6 +75,7 @@ export const useGameStore = create((set, get) => ({
 
   // ─── Board meeting ───
   boardData: null,
+  boardPopup: false,
 
   // ─── Actions ───
 
@@ -136,6 +137,7 @@ export const useGameStore = create((set, get) => ({
       ap: 3,
       maxAP: 3,
       boardData: null,
+      boardPopup: false,
       lastFeedback: null,
       forecast,
       log: [
@@ -242,12 +244,12 @@ export const useGameStore = create((set, get) => ({
     const end = checkEndCondition(monthly, newHistory);
     if (end) { set({ result: end, screen: 'end' }); return; }
 
-    // Check board meeting
+    // Check board meeting — show popup interstitial first (stay on game screen)
     if (isBoardMeetingMonth(monthly.month)) {
       const deltas = calculateDeltas(forecast, monthly, monthly.month);
       const phase = getBoardPhase(monthly.month, false);
       const feedback = generateBoardFeedback(deltas, phase, monthly.month, monthly);
-      set({ boardData: { deltas, phase, feedback, quarter: Math.ceil(monthly.month / 3) }, screen: 'board' });
+      set({ boardData: { deltas, phase, feedback, quarter: Math.ceil(monthly.month / 3) }, boardPopup: true });
       return;
     }
 
@@ -388,12 +390,12 @@ export const useGameStore = create((set, get) => ({
     const end = checkEndCondition(state, history);
     if (end) { set({ result: end, screen: 'end' }); return; }
 
-    // Check board meeting
+    // Check board meeting — show popup interstitial first (stay on game screen)
     if (isBoardMeetingMonth(state.month)) {
       const deltas = calculateDeltas(forecast, state, state.month);
       const phase = getBoardPhase(state.month, false);
       const feedback = generateBoardFeedback(deltas, phase, state.month, state);
-      set({ boardData: { deltas, phase, feedback, quarter: Math.ceil(state.month / 3) }, screen: 'board' });
+      set({ boardData: { deltas, phase, feedback, quarter: Math.ceil(state.month / 3) }, boardPopup: true });
       return;
     }
 
@@ -407,13 +409,92 @@ export const useGameStore = create((set, get) => ({
       forecast,
       log: [
         ...s.log,
-        { text: 'Forecast revised. New plan set.', color: 'plan', prefix: '📊' },
+        { text: 'Forecast revised. New plan set.', color: 'plan', prefix: '▸' },
       ],
     }));
   },
 
+  /**
+   * Transition from popup to full board meeting screen.
+   */
+  startBoardMeeting: () => {
+    set({ boardPopup: false, screen: 'board' });
+  },
+
+  /**
+   * Close board meeting → apply outcome effects for next quarter → continue.
+   */
   closeBoardMeeting: () => {
-    set({ boardData: null, screen: 'game' });
+    const { boardData, state } = get();
+
+    // Derive board effects from meeting outcome
+    const effects = [];
+    if (boardData) {
+      const misses = boardData.deltas.filter(d => d.status === 'below');
+      const wins = boardData.deltas.filter(d => d.status === 'above');
+      const mrrDelta = boardData.deltas.find(d => d.key === 'totalMRR');
+      const churnDelta = boardData.deltas.find(d => d.key === 'churn');
+
+      const mods = {};
+
+      if (wins.length >= 3) {
+        // Strong quarter → momentum bonus
+        effects.push({ label: 'Momentum: +10% pipeline', positive: true });
+        mods.pipelineBonus = Math.round((state.pipeline ?? 12) * 0.1);
+      } else if (wins.length >= 2 && misses.length === 0) {
+        effects.push({ label: 'Confidence: +5% conversion', positive: true });
+        mods.conversionBonus = 0.5;
+      }
+
+      if (misses.length >= 3) {
+        // Bad quarter → pressure
+        effects.push({ label: 'Pressure: +€500 burn (oversight)', positive: false });
+        mods.burnPenalty = 500;
+        effects.push({ label: 'Scrutiny: -5% pipeline', positive: false });
+        mods.pipelinePenalty = Math.round((state.pipeline ?? 12) * 0.05);
+      } else if (misses.length >= 2) {
+        effects.push({ label: 'Concern: +€200 burn (reporting)', positive: false });
+        mods.burnPenalty = 200;
+      }
+
+      if (churnDelta?.status === 'below') {
+        effects.push({ label: 'Churn alert: +1% churn pressure', positive: false });
+        mods.churnPressure = 1;
+      }
+
+      if (mrrDelta?.status === 'above' && Math.abs(mrrDelta.deltaPct) > 30) {
+        effects.push({ label: 'Revenue beat: -€300 burn efficiency', positive: true });
+        mods.burnReduction = 300;
+      }
+
+      // Apply effects to state
+      const newState = { ...state };
+      if (mods.pipelineBonus) newState.pipeline = (newState.pipeline ?? 12) + mods.pipelineBonus;
+      if (mods.conversionBonus) newState.conversionRate = Math.min(30, (newState.conversionRate ?? 15) + mods.conversionBonus);
+      if (mods.burnPenalty) newState.burnRate = (newState.burnRate ?? 8000) + mods.burnPenalty;
+      if (mods.pipelinePenalty) newState.pipeline = Math.max(2, (newState.pipeline ?? 12) - mods.pipelinePenalty);
+      if (mods.churnPressure) newState.churn = Math.min(20, (newState.churn ?? 5) + mods.churnPressure);
+      if (mods.burnReduction) newState.burnRate = Math.max(5000, (newState.burnRate ?? 8000) - mods.burnReduction);
+      newState.boardEffects = effects.length > 0 ? effects : null;
+
+      set(s => ({
+        state: newState,
+        boardData: null,
+        boardPopup: false,
+        screen: 'game',
+        log: [
+          ...s.log,
+          ...effects.map(e => ({
+            text: e.label,
+            color: e.positive ? 'growth' : 'danger',
+            prefix: e.positive ? '▲' : '▼',
+          })),
+        ],
+      }));
+    } else {
+      set({ boardData: null, boardPopup: false, screen: 'game' });
+    }
+
     get()._drawMonthEvents();
   },
 
@@ -426,7 +507,7 @@ export const useGameStore = create((set, get) => ({
       monthEvents: [], monthEventIndex: 0,
       currentEvent: null, currentWorldEvent: null,
       usedEvents: [], usedWorlds: [],
-      lastFeedback: null, result: null, boardData: null,
+      lastFeedback: null, result: null, boardData: null, boardPopup: false,
     });
   },
 }));

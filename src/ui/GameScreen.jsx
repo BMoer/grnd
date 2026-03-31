@@ -7,11 +7,12 @@ import EventCard from './components/EventCard.jsx';
 import WorldEventBanner from './components/WorldEventBanner.jsx';
 import CompanySpotlight from './components/CompanySpotlight.jsx';
 import LogPanel from './components/LogPanel.jsx';
+import BoardMeetingPopup from './components/BoardMeetingPopup.jsx';
 
 export default function GameScreen() {
   const {
     state, classConfig, currentEvent, currentWorldEvent,
-    history, decisions, restart, ap, maxAP, lastFeedback,
+    history, decisions, restart, ap, maxAP, lastFeedback, boardPopup,
   } = useGameStore();
   const [mobileView, setMobileView] = useState('event'); // event | kpi | spotlight
   if (!state || !classConfig) return null;
@@ -62,9 +63,9 @@ export default function GameScreen() {
           {/* Mobile view toggles */}
           <div className="md:hidden flex gap-1">
             {[
-              { key: 'event', label: '📋' },
-              { key: 'kpi', label: '📊' },
-              { key: 'spotlight', label: '🏢' },
+              { key: 'event', label: 'Events' },
+              { key: 'kpi', label: 'KPIs' },
+              { key: 'spotlight', label: 'Company' },
             ].map(({ key, label }) => (
               <button
                 key={key}
@@ -121,7 +122,7 @@ export default function GameScreen() {
       {/* Main content: Events (left) + Company Spotlight (right) */}
       <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
         {/* Left: Events + Log */}
-        <div className={`flex-1 flex flex-col overflow-hidden min-w-0 ${mobileView !== 'event' && mobileView !== 'kpi' ? 'hidden md:flex' : ''}`}>
+        <div className={`md:w-1/2 flex-1 flex flex-col overflow-hidden min-w-0 ${mobileView !== 'event' && mobileView !== 'kpi' ? 'hidden md:flex' : ''}`}>
           {/* Event area */}
           <div className="flex-1 overflow-auto p-3 md:p-4">
             {lastFeedback && !currentEvent && !currentWorldEvent ? (
@@ -153,9 +154,9 @@ export default function GameScreen() {
           </div>
         </div>
 
-        {/* Right: Company Spotlight */}
+        {/* Right: Company Spotlight — 50% width */}
         <aside
-          className={`w-full md:w-72 lg:w-80 overflow-auto p-3 shrink-0 ${mobileView === 'spotlight' ? '' : 'hidden md:block'}`}
+          className={`md:w-1/2 overflow-auto p-3 shrink-0 ${mobileView === 'spotlight' ? '' : 'hidden md:block'}`}
           style={{ borderLeft: '1px solid var(--color-border)', background: 'var(--color-surface)' }}
         >
           <CompanySpotlight />
@@ -184,6 +185,9 @@ export default function GameScreen() {
           )}
         </aside>
       </div>
+
+      {/* Board Meeting Popup Overlay */}
+      {boardPopup && <BoardMeetingPopup />}
     </div>
   );
 }
