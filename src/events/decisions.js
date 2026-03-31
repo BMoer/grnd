@@ -48,6 +48,7 @@ export const DECISION_EVENTS = [
       },
       {
         text: '€99/mo — premium, fewer but committed users',
+        apCost: 2,
         effects: (s) => ({
           ...s,
           price: 99,
@@ -97,6 +98,7 @@ export const DECISION_EVENTS = [
     getChoices: () => [
       {
         text: 'Cut features to focus — do one thing brilliantly',
+        apCost: 2,
         effects: (s) => ({
           ...s,
           product: s.product + 8,
@@ -191,6 +193,7 @@ export const DECISION_EVENTS = [
     getChoices: () => [
       {
         text: 'Ship the top 3 requested features',
+        apCost: 2,
         effects: (s) => ({
           ...s,
           product: s.product + 6,
@@ -204,6 +207,7 @@ export const DECISION_EVENTS = [
       },
       {
         text: 'Freeze dev. Talk to 30 users instead.',
+        apCost: 2,
         effects: (s) => ({
           ...s,
           product: s.product + 3,
@@ -281,6 +285,7 @@ export const DECISION_EVENTS = [
     getChoices: () => [
       {
         text: 'Build custom features for them',
+        apCost: 2,
         effects: (s) => ({
           ...s,
           totalMRR: (s.totalMRR ?? 0) + 800,
@@ -303,6 +308,7 @@ export const DECISION_EVENTS = [
       },
       {
         text: 'Paid pilot — 3 months, €2K/mo, defined scope',
+        apCost: 2,
         effects: (s) => ({
           ...s,
           totalMRR: (s.totalMRR ?? 0) + 2000,
@@ -387,6 +393,7 @@ export const DECISION_EVENTS = [
     getChoices: () => [
       {
         text: 'Call every churned user and ask why',
+        apCost: 2,
         effects: (s) => ({
           ...s,
           churn: Math.max(3, s.churn - 2),
@@ -447,6 +454,7 @@ export const DECISION_EVENTS = [
     getChoices: () => [
       {
         text: 'Double down on the feature power users love',
+        apCost: 2,
         effects: (s) => ({
           ...s,
           product: s.product + 8,
@@ -499,6 +507,7 @@ export const DECISION_EVENTS = [
     getChoices: () => [
       {
         text: 'Pour fuel on it — 2x spend, accelerate',
+        apCost: 2,
         dynamicFeedback: (s) => (s.product ?? 30) > 40
           ? 'It was real. Growth compounded. This is what finding the moment feels like.'
           : 'It was a blip. You scaled spend before validating. Burn jumped, growth didn\'t follow.',
@@ -532,6 +541,7 @@ export const DECISION_EVENTS = [
       },
       {
         text: 'Fundraise on the momentum',
+        apCost: 2,
         dynamicFeedback: (s) => (s.totalMRR ?? 0) > 1500
           ? '€80K raised on real numbers. Smart timing — investors fund trajectories, not snapshots.'
           : '€30K raised on a story. Less than hoped, but the process sharpened your pitch.',
@@ -572,6 +582,7 @@ export const DECISION_EVENTS = [
       },
       {
         text: 'Hire to reduce the load',
+        apCost: 2,
         effects: (s) => ({
           ...s,
           burnRate: s.burnRate + 3500,
@@ -611,6 +622,7 @@ export const DECISION_EVENTS = [
     getChoices: () => [
       {
         text: 'Go upmarket — enterprise, higher ACV',
+        apCost: 2,
         effects: (s) => ({
           ...s,
           totalMRR: (s.totalMRR ?? 0) + 1500,
@@ -665,6 +677,7 @@ export const DECISION_EVENTS = [
     getChoices: () => [
       {
         text: 'Take the meeting — pitch for €100K',
+        apCost: 2,
         dynamicFeedback: (s) => {
           const mrr = s.totalMRR ?? 0;
           const product = s.product ?? 30;
@@ -727,6 +740,7 @@ export const DECISION_EVENTS = [
     getChoices: () => [
       {
         text: 'Differentiate — build what they can\'t copy',
+        apCost: 2,
         effects: (s) => ({
           ...s,
           product: s.product + 6,
@@ -776,6 +790,7 @@ export const DECISION_EVENTS = [
     getChoices: () => [
       {
         text: 'All in on enterprise — fewer, bigger deals',
+        apCost: 2,
         effects: (s) => ({
           ...s,
           price: Math.round((s.price ?? 49) * 2.5),
@@ -838,6 +853,7 @@ export const DECISION_EVENTS = [
     getChoices: () => [
       {
         text: 'Fight for it — on-site meeting, custom roadmap',
+        apCost: 2,
         dynamicFeedback: (s) => (s.product ?? 30) > 45
           ? 'They stayed. Your product is too embedded in their workflows. But you just spent 2 AP on one customer.'
           : 'They stayed for now. But the custom roadmap commits you to 3 months of features only they need.',
@@ -893,6 +909,7 @@ export const DECISION_EVENTS = [
       },
       {
         text: 'Invest in growth — raise or die trying',
+        apCost: 2,
         effects: (s) => ({
           ...s,
           burnRate: s.burnRate + 2000,
@@ -934,6 +951,7 @@ export const DECISION_EVENTS = [
     getChoices: () => [
       {
         text: 'Start the fundraise — commit 2 months',
+        apCost: 2,
         dynamicFeedback: (s) => {
           const mrr = s.totalMRR ?? 0;
           const churn = s.churn ?? 10;
@@ -1106,6 +1124,7 @@ export const DECISION_EVENTS = [
       },
       {
         text: 'Compete on innovation — ship what they can\'t',
+        apCost: 2,
         effects: (s) => ({
           ...s,
           product: s.product + 5,
@@ -1139,6 +1158,7 @@ export const DECISION_EVENTS = [
     getChoices: () => [
       {
         text: 'Expand to DACH — German-speaking markets first',
+        apCost: 2,
         effects: (s) => ({
           ...s,
           pipeline: s.pipeline + 12, salesEffort: Math.min(1, (s.salesEffort ?? 0) + 0.5),
@@ -1182,6 +1202,7 @@ export const DECISION_EVENTS = [
     getChoices: () => [
       {
         text: 'Venture path — growth above everything',
+        apCost: 2,
         effects: (s) => ({
           ...s,
           burnRate: s.burnRate + 3000,
@@ -1337,6 +1358,7 @@ export const DECISION_EVENTS = [
     getChoices: () => [
       {
         text: 'Build it — charge extra for premium tier',
+        apCost: 2,
         effects: (s) => ({
           ...s,
           totalMRR: Math.round((s.totalMRR ?? 0) * 1.1),
@@ -1372,6 +1394,7 @@ export const DECISION_EVENTS = [
     getChoices: () => [
       {
         text: 'Accept — 20% revenue share for distribution',
+        apCost: 2,
         effects: (s) => {
           const addedMRR = (s.mrrPerCustomer || 49) * 3;
           return {

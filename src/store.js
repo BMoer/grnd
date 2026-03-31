@@ -289,7 +289,7 @@ export const useGameStore = create((set, get) => ({
       ? choice.dynamicFeedback(state)
       : choice.feedback;
 
-    const newAP = ap - (currentEvent.apCost ?? 1);
+    const newAP = ap - (choice.apCost ?? 1);
 
     set(s => ({
       state: newState,
@@ -326,7 +326,9 @@ export const useGameStore = create((set, get) => ({
     const def = currentEvent.defaultOutcome;
     const newState = applyEffectsWithVariance(def.effects, state);
     newState.pmf = calculateSaaSPMF(newState);
-    const forced = ap < (currentEvent.apCost ?? 1);
+    // Check if ANY choice was affordable — if not, this skip was forced
+    const choices = currentEvent.getChoices ? currentEvent.getChoices('saas') : [];
+    const forced = !choices.some(ch => ap >= (ch.apCost ?? 1));
 
     set(s => ({
       state: newState,
@@ -362,10 +364,8 @@ export const useGameStore = create((set, get) => ({
       const nextEvent = monthEvents[nextIdx];
       set({ monthEventIndex: nextIdx, currentEvent: nextEvent, lastFeedback: null });
 
-      // Auto-default if not enough AP
-      if (ap < (nextEvent.apCost ?? 1)) {
-        setTimeout(() => get().skipEvent(), 600);
-      }
+      // No auto-default — player always sees events and chooses.
+      // If they can't afford any choice, they must skip manually.
     } else {
       // All events resolved → next month
       set({ lastFeedback: null });
