@@ -10,7 +10,7 @@
 // - Product quality drives retention
 // ═══════════════════════════════════════════════════════════════
 
-import { applyVariance, drawFromCorridor } from './varianceEngine.js';
+import { applyVariance } from './varianceEngine.js';
 
 /**
  * Advance the game by one month.
@@ -19,7 +19,23 @@ import { applyVariance, drawFromCorridor } from './varianceEngine.js';
 export function advanceMonth(state, classConfig) {
   const month = state.month + 1;
   const corridors = classConfig.corridors || {};
-  const fm = state.founderMods || {}; // founder attribute modifiers
+  const fm = state.founderMods || {};
+
+  // ─── Process pending delayed effects ───
+  const pending = state.pendingEffects ?? [];
+  const due = pending.filter(e => e.month <= month);
+  const remaining = pending.filter(e => e.month > month);
+  // Merge due effects into state for this month
+  for (const effect of due) {
+    for (const [key, val] of Object.entries(effect.changes)) {
+      if (typeof val === 'number' && typeof state[key] === 'number') {
+        state = { ...state, [key]: state[key] + val };
+      } else {
+        state = { ...state, [key]: val };
+      }
+    }
+  }
+  state = { ...state, pendingEffects: remaining };
 
   // ─── Reality corridor pulls ───
   // Each month, actual metrics drift toward their corridor center.
@@ -27,8 +43,6 @@ export function advanceMonth(state, classConfig) {
   // Price sensitivity: higher prices increase churn and CAC corridors.
 
   const price = state.price ?? 0;
-  const priceCenter = corridors.price?.center ?? 49;
-
   // ─── Non-linear price sensitivity ───
   // Restaurant owners have a mental budget for software.
   // Below ~€60: "sure, worth trying"
@@ -113,7 +127,7 @@ export function advanceMonth(state, classConfig) {
   // Pipeline decay: 25% without active sales effort (was 20% — harsher)
   // salesEffort tracks whether recent events invested in sales/pipeline
   const salesEffort = state.salesEffort ?? 0; // 0-1, set by events
-  const pipelineDecay = 0.75 + salesEffort * 0.1; // 0.75 (no effort) to 0.85 (active sales)
+  const pipelineDecay = 0.80 + salesEffort * 0.1; // 0.80 (no effort) to 0.90 (active sales)
   let pipeline = Math.round((state.pipeline ?? 12) * pipelineDecay + baseGrowth * 0.4 + organicReferrals);
   // Reality corridor pull on pipeline growth
   const corridorPipeline = corridors.pipelineGrowth || { min: 3, max: 40, center: 12 };
@@ -136,15 +150,57 @@ export function advanceMonth(state, classConfig) {
   const totalMRR = Math.max(0, (state.totalMRR ?? 0) + newMRR - churnedMRR);
   const revenue = totalMRR;
 
-  // ─── Costs ───
+  // ─── Costs & Team Budget Effects ───
   const supportCosts = customers * (state.supportCost ?? 5);
-  const burnBase = state.burnRate ?? 8000;
+  const initialBurn = classConfig?.initial?.burnRate ?? 4500;
+  const cofounderFloor = Math.round(initialBurn * 0.5); // can't fire your co-founder
+  const burnBase = Math.max(cofounderFloor, state.burnRate ?? initialBurn);
+
+  // ─── Team budget change effects ───
+  // Track how budget changed vs last month
+  const prevBurn = state.prevBurnRate ?? initialBurn;
+  const burnDelta = burnBase - prevBurn;
+  const burnChangePct = prevBurn > 0 ? burnDelta / prevBurn : 0;
+
+  let teamMorale = state.teamMorale ?? 1.0; // 0.3 to 1.5
+  let teamVelocity = 1.0; // multiplier for product/pipeline effects this month
+
+  if (burnDelta < -500) {
+    // CUTS: layoffs/downsizing
+    const cutSeverity = Math.abs(burnChangePct); // 0.1 = 10% cut, 0.3 = 30% cut
+    teamMorale = Math.max(0.3, teamMorale - cutSeverity * 1.5); // morale tanks
+    teamVelocity = Math.max(0.4, 1.0 - cutSeverity * 2); // short-term productivity crash
+    // Cuts hurt everything: churn goes up (customers notice), pipeline slows, product suffers
+    actualChurn = Math.min(25, actualChurn + cutSeverity * 5);
+    pipeline = Math.max(2, Math.round(pipeline * (1 - cutSeverity * 0.3)));
+  } else if (burnDelta > 1000) {
+    // GROWTH: hiring/investing
+    const growthRate = burnChangePct; // 0.1 = 10% growth, 0.5 = 50% growth
+    if (growthRate > 0.3) {
+      // Too fast! Onboarding overhead, communication chaos
+      teamVelocity = Math.max(0.6, 1.0 - (growthRate - 0.3) * 1.5);
+      teamMorale = Math.max(0.5, teamMorale - 0.1); // growing pains
+    } else {
+      // Healthy growth: more capacity
+      teamVelocity = 1.0 + growthRate * 0.5; // up to 1.15x at 30% growth
+      teamMorale = Math.min(1.3, teamMorale + 0.05); // fresh energy
+    }
+  } else {
+    // Stable: morale recovers slowly toward 1.0
+    teamMorale = teamMorale + (1.0 - teamMorale) * 0.15;
+  }
+
+  // Team budget level affects baseline capacity
+  // More budget = more people = more gets done (diminishing returns)
+  const budgetRatio = burnBase / initialBurn; // 1.0 = baseline, 2.0 = doubled team
+  const capacityMultiplier = Math.pow(budgetRatio, 0.6); // diminishing: 2x budget = 1.52x capacity
+
   // Infrastructure scales with customers
-  const infraCost = Math.round(customers * 3 + Math.max(0, customers - 20) * 2);
+  const infraCost = Math.round(customers * 2 + Math.max(0, customers - 30) * 2);
   // Misc costs creep up (legal, tools, subscriptions, compliance)
-  const miscCreep = month > 2 ? Math.round(month * 50) : 0;
+  const miscCreep = month > 2 ? Math.round(month * 30) : 0;
   // Marketing spend (needed to maintain pipeline)
-  const marketingSpend = Math.round(baseGrowth * actualCAC * 0.25);
+  const marketingSpend = Math.round(baseGrowth * actualCAC * 0.15);
   const totalBurn = burnBase + supportCosts + infraCost + miscCreep + marketingSpend;
 
   const cash = Math.round((state.cash ?? 100000) - totalBurn + revenue);
@@ -160,13 +216,17 @@ export function advanceMonth(state, classConfig) {
   // salesEffort decays each month — you need ongoing sales investment
   const salesEffortDecayed = Math.max(0, (state.salesEffort ?? 0) - 0.3);
 
-  // ─── Product quality natural decay ───
-  // Without active investment, product quality slowly degrades (tech debt, market moves)
-  // Capped at 85 — you can't reach 100 without extraordinary sustained investment
+  // ─── Product quality ───
+  // Base decay (tech debt, market moves), modified by team capacity and velocity
   let product = Math.min(85, productQuality);
+  const teamEffect = capacityMultiplier * teamVelocity * teamMorale;
   if (month > 2) {
-    product = Math.max(10, product - 0.8); // decay accelerates slightly
+    // Decay reduced by team capacity: bigger, happier team decays less
+    const decayRate = Math.max(0, 0.8 - (teamEffect - 1) * 0.5);
+    product = Math.max(10, product - decayRate);
   }
+  // Team velocity boosts pipeline too
+  pipeline = Math.max(2, Math.round(pipeline * (0.9 + teamEffect * 0.1)));
 
   // ─── Founder attribute bonuses ───
   // Domain skill narrows corridor pulls (more accurate assumptions hold longer)
@@ -196,6 +256,8 @@ export function advanceMonth(state, classConfig) {
     revenue,
     supportCosts,
     burnRate: burnBase,
+    prevBurnRate: burnBase,
+    teamMorale,
     totalBurn,
     marketingSpend,
     cash,
@@ -218,13 +280,16 @@ export function advanceMonth(state, classConfig) {
  * Returns null (game continues), 'dead', 'pmf', or 'survived'.
  */
 export function checkEndCondition(state, history, maxMonths = 24) {
+  // Acquired
+  if (state.acquired) return 'acquired';
+
   // Death: cash ≤ 0
   if (state.cash <= 0) return 'dead';
 
   // Win: PMF threshold met for 3 consecutive months
   if (history.length >= 4) { // need at least 4 entries (M0 + 3 months)
     const last3 = history.slice(-3);
-    const allAbove = last3.every(s => (s.pmf ?? 0) >= 75);
+    const allAbove = last3.every(s => (s.pmf ?? 0) >= 85);
     if (allAbove) return 'pmf';
   }
 

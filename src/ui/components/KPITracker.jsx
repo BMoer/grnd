@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useGameStore } from '../../store.js';
+import { Term } from './Tooltip.jsx';
 
 /**
  * Horizontal Excel-style KPI tracker.
@@ -22,14 +23,14 @@ export default function KPITracker() {
 
   // KPI definitions — rows of the table
   const kpis = [
-    { key: 'totalMRR', label: 'MRR', format: (v) => `€${(v ?? 0).toLocaleString('de-DE')}`, highlight: true },
-    { key: 'customers', label: 'Customers', format: (v) => `${v ?? 0}` },
-    { key: 'churn', label: 'Churn %', format: (v) => `${typeof v === 'number' ? v.toFixed(1) : v ?? 0}%`, danger: (v) => (v ?? 0) > 10 },
-    { key: 'cac', label: 'CAC', format: (v) => v ? `€${Math.round(v)}` : '–' },
-    { key: 'ltvCacRatio', label: 'LTV:CAC', format: (v) => `${typeof v === 'number' ? v.toFixed(1) : v ?? 0}x`, good: (v) => (v ?? 0) >= 3 },
-    { key: 'cash', label: 'Cash', format: (v) => `€${((v ?? 0) / 1000).toFixed(0)}K`, danger: (v) => (v ?? 0) < 20000 },
-    { key: 'totalBurn', label: 'Burn', altKey: 'burnRate', format: (v) => `€${(v ?? 0).toLocaleString('de-DE')}` },
-    { key: 'runway', label: 'Runway', format: (v) => (v ?? 0) > 24 ? '24+' : `${v ?? 0}mo`, danger: (v) => (v ?? 0) < 4, good: (v) => (v ?? 0) > 12 },
+    { key: 'totalMRR', label: 'MRR', glossary: 'MRR', format: (v) => `€${(v ?? 0).toLocaleString('en-US')}`, highlight: true },
+    { key: 'customers', label: 'Customers', glossary: 'Customers', format: (v) => `${v ?? 0}` },
+    { key: 'churn', label: 'Churn %', glossary: 'Churn', format: (v) => `${typeof v === 'number' ? v.toFixed(1) : v ?? 0}%`, danger: (v) => (v ?? 0) > 10 },
+    { key: 'cac', label: 'CAC', glossary: 'CAC', format: (v) => v ? `€${Math.round(v)}` : '–' },
+    { key: 'ltvCacRatio', label: 'LTV:CAC', glossary: 'LTV:CAC', format: (v) => `${typeof v === 'number' ? v.toFixed(1) : v ?? 0}x`, good: (v) => (v ?? 0) >= 3 },
+    { key: 'cash', label: 'Cash', glossary: 'Cash', format: (v) => `€${((v ?? 0) / 1000).toFixed(0)}K`, danger: (v) => (v ?? 0) < 20000 },
+    { key: 'totalBurn', label: 'Burn', glossary: 'Burn', altKey: 'burnRate', format: (v) => `€${(v ?? 0).toLocaleString('en-US')}` },
+    { key: 'runway', label: 'Runway', glossary: 'Runway', format: (v) => (v ?? 0) > 24 ? '24+' : `${v ?? 0}mo`, danger: (v) => (v ?? 0) < 4, good: (v) => (v ?? 0) > 12 },
   ];
 
   const cellStyle = {
@@ -63,7 +64,8 @@ export default function KPITracker() {
                 fontWeight: 600,
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em',
-                minWidth: 70,
+                minWidth: 80,
+                boxShadow: '2px 0 4px rgba(0,0,0,0.05)',
               }}
             >
               KPI
@@ -100,9 +102,10 @@ export default function KPITracker() {
                   color: kpi.highlight ? accent : 'var(--color-text-muted)',
                   fontWeight: kpi.highlight ? 600 : 500,
                   textAlign: 'left',
+                  boxShadow: '2px 0 4px rgba(0,0,0,0.05)',
                 }}
               >
-                {kpi.label}
+                {kpi.glossary ? <Term term={kpi.glossary}>{kpi.label}</Term> : kpi.label}
               </td>
               {/* Values per month */}
               {history.map((s, ci) => {

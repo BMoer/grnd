@@ -58,6 +58,7 @@ export const WORLD_EVENTS = [
       ...s,
       churn: Math.min(20, s.churn + 1.5),
       pipeline: Math.max(2, Math.round(s.pipeline * 0.8)),
+      teamMorale: Math.max(0.3, (s.teamMorale ?? 1) - 0.15),
     }),
   },
 
@@ -135,12 +136,109 @@ export const WORLD_EVENTS = [
   {
     id: 'positive_press',
     title: 'Positive Press',
-    text: 'Gründerszene featured you in "10 Food-Tech Startups to Watch." The article is fair, accurate, and your inbox is full.',
+    text: 'A major tech publication featured you in "10 Food-Tech Startups to Watch." The article is fair, accurate, and your inbox is full.',
     flavor: 'Inbound leads tripled this week. Most are tire-kickers. But some are real. The signal-to-noise ratio is your problem now.',
     effect: (s) => ({
       ...s,
       pipeline: s.pipeline + 12,
       conversionRate: Math.min(30, s.conversionRate + 0.5),
+    }),
+  },
+
+  // ═══ Additional World Events ═══
+
+  {
+    id: 'supply_chain_crisis',
+    title: 'Supply Chain Disruption',
+    text: 'Global supply chain issues hit the restaurant industry. Ingredient costs up 20%. Your customers are in survival mode.',
+    flavor: 'Every restaurant owner is recalculating margins. Software subscriptions are the first thing they cut — unless you can prove ROI today.',
+    effect: (s) => ({
+      ...s,
+      churn: Math.min(20, s.churn + 2),
+      pipeline: Math.max(2, Math.round(s.pipeline * 0.8)),
+      // But demand prediction becomes more valuable
+      product: s.product + 2,
+    }),
+  },
+
+  {
+    id: 'food_trend_wave',
+    title: 'Food Trend Explosion',
+    text: 'A new food trend went viral on TikTok. Restaurants scrambling to adapt their menus. Demand prediction suddenly feels essential.',
+    flavor: 'Three restaurant owners called asking if your tool can help them ride the trend. It can — kind of. Good enough to demo.',
+    effect: (s) => ({
+      ...s,
+      pipeline: s.pipeline + 8,
+      conversionRate: Math.min(30, s.conversionRate + 1.5),
+      customers: s.customers + 1,
+      totalMRR: (s.totalMRR ?? 0) + (s.price ?? 49),
+    }),
+  },
+
+  {
+    id: 'competitor_scandal',
+    title: 'Competitor Data Breach',
+    text: 'Your main competitor had a data breach. Customer payment data leaked. The restaurant WhatsApp groups are on fire.',
+    flavor: 'Three of their customers emailed you today. Switching costs just dropped to zero. But trust in food-tech SaaS just took a collective hit.',
+    effect: (s) => ({
+      ...s,
+      pipeline: s.pipeline + 10,
+      customers: s.customers + 2,
+      totalMRR: (s.totalMRR ?? 0) + (s.price ?? 49) * 2,
+      churn: Math.min(20, s.churn + 0.5), // general trust erosion
+    }),
+  },
+
+  {
+    id: 'energy_crisis',
+    title: 'Energy Price Spike',
+    text: 'Energy prices doubled. Restaurants\'  biggest cost after labor just exploded. Everyone is looking for efficiency tools.',
+    flavor: 'Silver lining: your demand prediction reduces waste, which reduces energy costs. The pitch just got easier.',
+    effect: (s) => ({
+      ...s,
+      pipeline: s.pipeline + 5,
+      burnRate: s.burnRate + 300, // your own costs went up too
+      conversionRate: Math.min(30, s.conversionRate + 1),
+    }),
+  },
+
+  {
+    id: 'government_subsidy',
+    title: 'Digitalization Grant Program',
+    text: 'The government announced a €5K digitalization voucher for SMBs. Restaurants can use it for — surprise — software like yours.',
+    flavor: 'Every restaurant owner just got €5K earmarked for software. Your phone is ringing. The subsidy expires in 3 months.',
+    effect: (s) => ({
+      ...s,
+      pipeline: s.pipeline + 15,
+      customers: s.customers + 2,
+      totalMRR: (s.totalMRR ?? 0) + (s.price ?? 49) * 2,
+      revenue: (s.revenue ?? 0) + (s.price ?? 49) * 2,
+      cac: Math.max(30, (s.cac || 80) - 20),
+    }),
+  },
+
+  {
+    id: 'tech_stack_shift',
+    title: 'Platform Dependency Risk',
+    text: 'The cloud provider you built on just raised prices 30%. Or you can migrate to a cheaper alternative — which takes a month of engineering.',
+    flavor: 'Platform risk is real. Every dependency is a bet on someone else\'s roadmap.',
+    effect: (s) => ({
+      ...s,
+      burnRate: s.burnRate + 800,
+      product: Math.max(10, (s.product ?? 30) - 1),
+    }),
+  },
+
+  {
+    id: 'labor_shortage',
+    title: 'Restaurant Labor Shortage',
+    text: 'Staff shortages hit the restaurant industry hard. Owners desperate for efficiency tools. Your product suddenly saves not just money — but the labor they can\'t hire.',
+    flavor: 'The value proposition shifted from "nice to have" to "survival tool." Position accordingly.',
+    effect: (s) => ({
+      ...s,
+      pipeline: s.pipeline + 7,
+      churn: Math.max(3, s.churn - 1),
+      conversionRate: Math.min(30, s.conversionRate + 1),
     }),
   },
 ];

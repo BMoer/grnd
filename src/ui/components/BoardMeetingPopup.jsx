@@ -59,7 +59,7 @@ export default function BoardMeetingPopup() {
             className="grid grid-cols-2 gap-3 mb-6"
           >
             {[
-              { label: 'MRR', value: `€${mrr.toLocaleString('de-DE')}` },
+              { label: 'MRR', value: `€${mrr.toLocaleString('en-US')}` },
               { label: 'Cash', value: `€${(cash / 1000).toFixed(0)}K` },
               { label: 'Runway', value: runway > 24 ? '24+ mo' : `${runway} mo`, color: runway < 4 ? 'var(--color-danger)' : runway < 8 ? 'var(--color-caution)' : undefined },
               { label: 'PMF Score', value: `${pmf}`, color: pmf > 65 ? 'var(--color-growth)' : pmf < 40 ? 'var(--color-danger)' : undefined },

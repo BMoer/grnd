@@ -100,12 +100,20 @@ export default function CompanySpotlight() {
       prev: prev?.teamSize ?? 2,
       format: (v) => v.toString(),
     },
+    ...((state.teamMorale ?? 1) !== 1 ? [{
+      iconType: 'team',
+      label: 'Team Morale',
+      value: state.teamMorale ?? 1,
+      prev: prev?.teamMorale ?? 1,
+      format: (v) => v >= 1.1 ? 'High' : v >= 0.8 ? 'OK' : v >= 0.5 ? 'Low' : 'Critical',
+      color: (state.teamMorale ?? 1) < 0.6 ? 'var(--color-danger)' : (state.teamMorale ?? 1) < 0.9 ? 'var(--color-caution)' : 'var(--color-growth)',
+    }] : []),
     {
       iconType: 'mrr',
       label: 'MRR',
       value: state.totalMRR ?? 0,
       prev: prev?.totalMRR ?? 0,
-      format: (v) => `€${v.toLocaleString('de-DE')}`,
+      format: (v) => `€${v.toLocaleString('en-US')}`,
       color: accent,
       iconColor: accent,
     },
@@ -122,7 +130,7 @@ export default function CompanySpotlight() {
       label: 'Net Burn',
       value: netBurn,
       prev: prev ? Math.max(0, (prev.totalBurn ?? prev.burnRate ?? 0) - (prev.revenue ?? 0)) : netBurn,
-      format: (v) => `€${v.toLocaleString('de-DE')}/mo`,
+      format: (v) => `€${v.toLocaleString('en-US')}/mo`,
       invertDelta: true, // lower is better
     },
     {
@@ -200,7 +208,7 @@ export default function CompanySpotlight() {
                       color: deltaPositive ? 'var(--color-growth)' : 'var(--color-danger)',
                     }}
                   >
-                    {delta > 0 ? '+' : ''}{typeof m.value === 'number' && m.value > 1000 ? m.format(delta) : delta}
+                    {delta > 0 ? '+' : ''}{typeof m.value === 'number' && m.value > 1000 ? m.format(delta) : Math.round(delta * 100) / 100}
                   </span>
                 )}
               </div>

@@ -278,8 +278,8 @@ export default function CharacterScreen() {
           {mode === 'custom' && remaining !== 0 ? `Distribute ${remaining} more points` : 'Continue to Assumptions →'}
         </button>
 
-        <p className="text-center text-[10px] mt-2" style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>
-          Difficulty is transparent. Every modifier is sourced.
+        <p className="text-center text-[10px] mt-2 leading-relaxed max-w-md mx-auto" style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>
+          Difficulty is transparent. All modifiers are based on published research and reflect systemic barriers — not personal ability.
         </p>
       </div>
     </div>

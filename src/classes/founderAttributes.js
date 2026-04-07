@@ -76,8 +76,8 @@ export const CLASS_OPTIONS = [
 
 export const ETHNICITY_OPTIONS = [
   { key: 'majority', label: 'Majority', description: 'Baseline in European context.' },
-  { key: 'minority', label: 'Ethnic minority', description: '1.8% of EU startup capital went to non-white founders (Atomico, 2021).' },
-  { key: 'black', label: 'Black', description: '0.24% of UK VC funding 2009-2019 went to Black founders (Extend Ventures, 2020).' },
+  { key: 'minority', label: 'Ethnic minority', description: '1.8% of EU startup capital went to non-white founders (Atomico, 2021). These modifiers reflect systemic barriers — not personal ability.' },
+  { key: 'black', label: 'Black', description: '0.24% of UK VC 2009-2019 went to Black founders (Extend Ventures, 2020). Higher difficulty = documented systemic hurdles, not lower competence. Black founders show statistically higher returns when funded.' },
 ];
 
 export const AGE_OPTIONS = [
@@ -199,11 +199,11 @@ export function calculateBackgroundModifiers(background) {
       'Diverse teams achieve 30% higher returns (Kauffman Fellows)',
     );
   } else if (background.ethnicity === 'black') {
-    deltas.network -= 3;
-    deltas.capital -= 2;
+    deltas.network -= 2;
+    deltas.capital -= 1;
     deltas.resilience += 3;
-    mods.fundraisingSuccessRate *= 0.25;
-    mods.fundraisingAmountMultiplier *= 0.40;
+    mods.fundraisingSuccessRate *= 0.35;
+    mods.fundraisingAmountMultiplier *= 0.50;
     mods.grantBonus += 0.2;
     mods.lateGameBonus = true;
     mods.sources.push(

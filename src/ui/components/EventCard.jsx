@@ -23,6 +23,24 @@ export default function EventCard() {
         </span>
       </div>
 
+      {/* Speaker */}
+      {currentEvent.speaker && (
+        <div className="flex items-center gap-2 mb-2">
+          <span
+            className="w-2 h-2 rounded-full inline-block"
+            style={{ background: accent }}
+          />
+          <span className="text-[11px] font-medium" style={{ color: accent, fontFamily: 'var(--font-mono)' }}>
+            {currentEvent.speaker}
+          </span>
+          {currentEvent.speakerRole && (
+            <span className="text-[10px]" style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>
+              · {currentEvent.speakerRole}
+            </span>
+          )}
+        </div>
+      )}
+
       <h2 className="text-lg font-bold mb-1.5 tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>
         {currentEvent.title}
       </h2>

@@ -22,10 +22,41 @@ export const saas = {
     revenueType: 'MRR',
     keyMetric: 'Churn Rate',
     deathBy: 'Churn spiral',
-    winBy: 'LTV:CAC > 3, churn < 5%, MRR > €10K',
+    winBy: 'PMF Score ≥ 85 for 3 months',
   },
 
-  // Assumption sliders the player sets at game start
+  // Difficulty presets — replace granular sliders
+  difficultyPresets: {
+    pessimistic: {
+      label: 'Pessimistic',
+      icon: '▼',
+      description: 'Tough market. Low prices, high churn, weak pipeline. Relaxed board meetings — but no investment and barely any traction.',
+      color: 'var(--color-danger)',
+      assumptions: { price: 29, churnRate: 12, targetCAC: 150, conversionRate: 8, pipelineGrowth: 10, supportCost: 8 },
+      pros: ['Low barrier to entry', 'Realistic expectations'],
+      cons: ['Low revenue per customer', 'High churn', 'Hard to be profitable'],
+    },
+    neutral: {
+      label: 'Neutral',
+      icon: '●',
+      description: 'Balanced assumptions. Moderate prices, industry-standard churn, solid pipeline. The realistic middle ground.',
+      color: 'var(--color-plan)',
+      assumptions: { price: 49, churnRate: 7, targetCAC: 100, conversionRate: 12, pipelineGrowth: 20, supportCost: 5 },
+      pros: ['Balanced unit economics', 'Healthy growth possible'],
+      cons: ['No clear advantage', 'Medium margin for error'],
+    },
+    optimistic: {
+      label: 'Optimistic',
+      icon: '▲',
+      description: 'Strong market position. Premium pricing, low churn, high conversion. Lots of growth — but reality corrects hard.',
+      color: 'var(--color-growth)',
+      assumptions: { price: 79, churnRate: 4, targetCAC: 60, conversionRate: 20, pipelineGrowth: 35, supportCost: 3 },
+      pros: ['High revenue per customer', 'Strong unit economics'],
+      cons: ['Biggest reality-corridor gap', 'Disappointment likely'],
+    },
+  },
+
+  // Assumption sliders the player sets at game start (used in custom mode)
   assumptions: [
     {
       key: 'price',
@@ -75,9 +106,9 @@ export const saas = {
   // These are HARDER than what players assume. That's the point.
   corridors: {
     price: { min: 19, max: 299, center: 49 }, // player controls this
-    churnRate: { min: 3, max: 20, center: 8 },          // SMB SaaS churn is brutal
-    cac: { min: 50, max: 300, center: 140 },            // niche B2B acquisition is expensive
-    conversionRate: { min: 3, max: 25, center: 9 },    // restaurant owners don't convert easy
+    churnRate: { min: 3, max: 20, center: 6 },          // SMB SaaS churn: challenging but survivable
+    cac: { min: 50, max: 300, center: 120 },             // niche B2B acquisition is expensive
+    conversionRate: { min: 3, max: 25, center: 11 },    // restaurant owners don't convert easy
     pipelineGrowth: { min: 3, max: 40, center: 12 },  // organic growth is slow
     // Non-linear price sensitivity for restaurant SaaS
     // Toast/Square/7shifts: €30-70/mo for SMB. Above €80: real friction. Above €130: enterprise-only.
@@ -88,7 +119,7 @@ export const saas = {
   initial: {
     month: 0,
     cash: 100000,
-    burnRate: 7000,
+    burnRate: 4500,
     revenue: 0,
     totalMRR: 0,
     customers: 0,
@@ -127,13 +158,13 @@ export const saas = {
   ],
   formatRow: (r) => [
     `M${r[0]}`,
-    `€${(r[1] ?? 0).toLocaleString('de-DE')}`,
-    `€${(r[2] ?? 0).toLocaleString('de-DE')}`,
+    `€${(r[1] ?? 0).toLocaleString('en-US')}`,
+    `€${(r[2] ?? 0).toLocaleString('en-US')}`,
     `${r[3]}`,
     `${typeof r[4] === 'number' ? r[4].toFixed(1) : r[4]}%`,
     r[5] ? `€${Math.round(r[5])}` : '–',
     `${typeof r[6] === 'number' ? r[6].toFixed(1) : r[6]}x`,
-    `€${(r[7] ?? 0).toLocaleString('de-DE')}`,
+    `€${(r[7] ?? 0).toLocaleString('en-US')}`,
     r[8] > 24 ? '24+' : `${r[8]} mo`,
   ],
 };

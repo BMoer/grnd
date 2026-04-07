@@ -5,7 +5,7 @@ export default function DeltaTable({ deltas }) {
   if (!deltas?.length) return null;
 
   const formatValue = (val, format) => {
-    if (format === '€') return `€${val.toLocaleString('de-DE')}`;
+    if (format === '€') return `€${val.toLocaleString('en-US')}`;
     if (format === '%') return `${val}%`;
     if (format === 'x') return `${val}x`;
     return `${val}`;

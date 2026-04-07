@@ -1,13 +1,15 @@
+import { useState } from 'react';
 import { useGameStore } from '../store.js';
 import ForecastChart from './components/ForecastChart.jsx';
 import { exportToExcel } from '../export/excelExport.js';
+import { generateLearnings } from '../data/learnings.js';
 
 export default function EndScreen() {
   const { result, state, classConfig, history, decisions, forecast, assumptions, founderProfile, restart } = useGameStore();
   if (!result || !state) return null;
 
   const accent = classConfig?.color ?? 'var(--color-saas)';
-  const resultColor = result === 'pmf' ? 'var(--color-growth)' : result === 'dead' ? 'var(--color-danger)' : 'var(--color-caution)';
+  const resultColor = result === 'pmf' ? 'var(--color-growth)' : result === 'dead' ? 'var(--color-danger)' : result === 'acquired' ? 'var(--color-plan)' : 'var(--color-caution)';
 
   const resultTitle = {
     pmf: 'Product-Market Fit',
@@ -18,14 +20,15 @@ export default function EndScreen() {
   const resultText = {
     pmf: 'Users pull the product from your hands. Revenue grows organically. This is the moment.',
     dead: `Month ${state.month}. Cash hit zero. ${(state.pmf ?? 0) > 25 ? 'Something was building, but the money ran out first.' : 'The core assumptions never validated.'}`,
-    survived: `€${(state.cash ?? 0).toLocaleString('de-DE')} left. PMF: ${state.pmf ?? 0}/100. ${(state.pmf ?? 0) > 35 ? 'Close.' : 'Alive, but the hard questions remain.'}`,
+    survived: `€${(state.cash ?? 0).toLocaleString('en-US')} left. PMF: ${state.pmf ?? 0}/100. ${(state.pmf ?? 0) > 35 ? 'Close.' : 'Alive, but the hard questions remain.'}`,
+    acquired: 'Sold for €200K + jobs for everyone. Not the moonshot outcome, but everyone gets paid and the tech lives on. Sometimes the responsible exit is the right one.',
   }[result];
 
   const decisionCount = decisions.filter(d => !d.isWorld).length;
   const worldCount = decisions.filter(d => d.isWorld).length;
 
-  const handleExport = () => {
-    exportToExcel(classConfig, history, decisions, forecast, assumptions);
+  const handleExport = async () => {
+    await exportToExcel(classConfig, history, decisions, forecast, assumptions);
   };
 
   return (
@@ -46,8 +49,8 @@ export default function EndScreen() {
 
         {/* Final metrics */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <MetricCard label="Final Cash" value={`€${(state.cash ?? 0).toLocaleString('de-DE')}`} color={(state.cash ?? 0) > 0 ? 'var(--color-growth)' : 'var(--color-danger)'} />
-          <MetricCard label="Final MRR" value={`€${(state.totalMRR ?? 0).toLocaleString('de-DE')}`} color={accent} />
+          <MetricCard label="Final Cash" value={`€${(state.cash ?? 0).toLocaleString('en-US')}`} color={(state.cash ?? 0) > 0 ? 'var(--color-growth)' : 'var(--color-danger)'} />
+          <MetricCard label="Final MRR" value={`€${(state.totalMRR ?? 0).toLocaleString('en-US')}`} color={accent} />
           <MetricCard label="Customers" value={`${state.customers ?? 0}`} color={accent} />
           <MetricCard label="PMF Score" value={`${state.pmf ?? 0}/100`} color={(state.pmf ?? 0) >= 60 ? 'var(--color-growth)' : 'var(--color-caution)'} />
         </div>
@@ -77,6 +80,9 @@ export default function EndScreen() {
           <ForecastChart metric="totalMRR" label="MRR: Your Plan vs. Reality" />
         </div>
 
+        {/* Learnings Section */}
+        <LearningsSection state={state} history={history} decisions={decisions} forecast={forecast} founderProfile={founderProfile} />
+
         {/* Actions */}
         <div className="flex gap-3 justify-center flex-wrap">
           <button
@@ -84,7 +90,7 @@ export default function EndScreen() {
             className="px-6 py-3 rounded text-sm font-bold cursor-pointer"
             style={{ background: accent, color: '#fff', border: 'none', fontFamily: 'var(--font-display)' }}
           >
-            Export Spreadsheet
+            Download Financial Model
           </button>
           <button
             onClick={restart}
@@ -95,6 +101,72 @@ export default function EndScreen() {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function LearningsSection({ state, history, decisions, forecast, founderProfile }) {
+  const [expanded, setExpanded] = useState(true);
+  const learnings = generateLearnings(state, history, decisions, forecast, founderProfile);
+
+  if (!learnings.length) return null;
+
+  const typeColors = {
+    success: 'var(--color-growth)',
+    warning: 'var(--color-danger)',
+    insight: 'var(--color-plan)',
+  };
+  const typeIcons = {
+    success: '✓',
+    warning: '!',
+    insight: '◆',
+  };
+
+  return (
+    <div className="mb-6">
+      <button
+        onClick={() => setExpanded(e => !e)}
+        className="flex items-center gap-2 mb-3 cursor-pointer"
+        style={{ background: 'none', border: 'none', padding: 0 }}
+      >
+        <span
+          className="text-[10px] uppercase tracking-widest font-medium"
+          style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}
+        >
+          {expanded ? '▼' : '▶'} What You Learned ({learnings.length})
+        </span>
+      </button>
+
+      {expanded && (
+        <div className="flex flex-col gap-3">
+          {learnings.map((l, i) => (
+            <div
+              key={i}
+              className="p-4 rounded"
+              style={{
+                background: 'var(--color-surface)',
+                border: `1px solid var(--color-border)`,
+                borderLeft: `3px solid ${typeColors[l.type]}`,
+              }}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span
+                  className="text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold"
+                  style={{ background: `${typeColors[l.type]}20`, color: typeColors[l.type], fontFamily: 'var(--font-mono)' }}
+                >
+                  {typeIcons[l.type]}
+                </span>
+                <span className="text-sm font-bold" style={{ fontFamily: 'var(--font-display)' }}>
+                  {l.title}
+                </span>
+              </div>
+              <p className="text-[12px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
+                {l.text}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

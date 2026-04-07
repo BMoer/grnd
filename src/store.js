@@ -22,6 +22,39 @@ import { applyEffectsWithVariance } from './engine/varianceEngine.js';
 import { generateSaaSForecast } from './engine/forecastEngine.js';
 import { calculateSaaSPMF } from './engine/pmfCalculator.js';
 import { isBoardMeetingMonth, calculateDeltas, generateBoardFeedback, getBoardPhase } from './engine/boardMeeting.js';
+import { getHint } from './engine/hintEngine.js';
+
+/**
+ * Calculate meaningful state deltas for feedback display.
+ */
+function calculateStateDelta(before, after) {
+  const keys = [
+    { key: 'totalMRR', label: 'MRR', prefix: '€', round: true },
+    { key: 'customers', label: 'Customers', round: true },
+    { key: 'churn', label: 'Churn', suffix: '%', decimals: 1 },
+    { key: 'product', label: 'Produkt', round: true },
+    { key: 'pipeline', label: 'Pipeline', round: true },
+    { key: 'cash', label: 'Cash', prefix: '€', round: true },
+    { key: 'burnRate', label: 'Burn', prefix: '€', round: true },
+    { key: 'conversionRate', label: 'Conversion', suffix: '%', decimals: 1 },
+    { key: 'cac', label: 'CAC', prefix: '€', round: true },
+  ];
+  const result = [];
+  for (const { key, label, prefix, suffix, round, decimals } of keys) {
+    const bv = before[key] ?? 0;
+    const av = after[key] ?? 0;
+    const delta = av - bv;
+    if (Math.abs(delta) < 0.05) continue;
+    const formatted = round ? Math.round(delta) : Number(delta.toFixed(decimals ?? 1));
+    result.push({
+      label,
+      delta: formatted,
+      display: `${formatted > 0 ? '+' : ''}${prefix ?? ''}${formatted}${suffix ?? ''}`,
+      positive: key === 'churn' || key === 'cac' || key === 'burnRate' ? delta < 0 : delta > 0,
+    });
+  }
+  return result;
+}
 
 /**
  * Draw 1-3 events for a month from the available pool.
@@ -69,6 +102,10 @@ export const useGameStore = create((set, get) => ({
   usedEvents: [],
   usedWorlds: [],
   lastFeedback: null,    // feedback from last choice/default (shown briefly)
+
+  // ─── Hints ───
+  currentHint: null,
+  shownHints: {},
 
   // ─── Result ───
   result: null,
@@ -141,7 +178,7 @@ export const useGameStore = create((set, get) => ({
       lastFeedback: null,
       forecast,
       log: [
-        { text: `CloudKitchen initialized`, color: classConfig.color, prefix: '$' },
+        { text: `${classConfig.name} initialized`, color: classConfig.color, prefix: '$' },
         { text: classConfig.tagline, color: 'muted' },
         ...(founderProfile ? [
           { text: `Difficulty: ${founderProfile.difficulty}/10 | Fundraising: ×${(em.fundraisingSuccessRate ?? 1).toFixed(2)}`, color: em.fundraisingSuccessRate < 0.8 ? 'danger' : 'muted', prefix: '◆' },
@@ -261,8 +298,19 @@ export const useGameStore = create((set, get) => ({
    * Internal: draw events for this month and present first one.
    */
   _drawMonthEvents: () => {
-    const { state, usedEvents } = get();
+    const { state, usedEvents, history, shownHints } = get();
     const events = drawMonthEvents(state.month, usedEvents);
+
+    // Check for contextual hint
+    const hint = getHint(state, history, shownHints);
+    if (hint) {
+      set(s => ({
+        currentHint: hint,
+        shownHints: { ...s.shownHints, [hint.id]: state.month },
+      }));
+    } else {
+      set({ currentHint: null });
+    }
 
     if (events.length === 0) {
       // No events available — auto-advance
@@ -293,10 +341,13 @@ export const useGameStore = create((set, get) => ({
 
     const newAP = ap - (choice.apCost ?? 1);
 
+    // Calculate deltas for feedback display
+    const deltas = calculateStateDelta(state, newState);
+
     set(s => ({
       state: newState,
       ap: newAP,
-      lastFeedback: { text: feedback, type: 'choice' },
+      lastFeedback: { text: feedback, type: 'choice', deltas },
       decisions: [...s.decisions, {
         month: state.month,
         event: currentEvent.title,
@@ -305,7 +356,7 @@ export const useGameStore = create((set, get) => ({
         isWorld: false,
         wasDefault: false,
       }],
-      usedEvents: [...s.usedEvents, currentEvent.repeatable ? `${currentEvent.id}_${state.month}` : currentEvent.id],
+      usedEvents: [...s.usedEvents, currentEvent.id],
       currentEvent: null,
       log: [
         ...s.log,
@@ -314,8 +365,7 @@ export const useGameStore = create((set, get) => ({
       ],
     }));
 
-    // Next event or next month
-    setTimeout(() => get()._nextEventOrMonth(), 100);
+    // Wait for player to click Continue (feedback persists)
   },
 
   /**
@@ -328,13 +378,14 @@ export const useGameStore = create((set, get) => ({
     const def = currentEvent.defaultOutcome;
     const newState = applyEffectsWithVariance(def.effects, state);
     newState.pmf = calculateSaaSPMF(newState);
-    // Check if ANY choice was affordable — if not, this skip was forced
     const choices = currentEvent.getChoices ? currentEvent.getChoices('saas') : [];
     const forced = !choices.some(ch => ap >= (ch.apCost ?? 1));
 
+    const skipDeltas = calculateStateDelta(state, newState);
+
     set(s => ({
       state: newState,
-      lastFeedback: { text: def.feedback, type: 'default' },
+      lastFeedback: { text: def.feedback, type: 'default', deltas: skipDeltas },
       decisions: [...s.decisions, {
         month: state.month,
         event: currentEvent.title,
@@ -343,7 +394,7 @@ export const useGameStore = create((set, get) => ({
         isWorld: false,
         wasDefault: true,
       }],
-      usedEvents: [...s.usedEvents, currentEvent.repeatable ? `${currentEvent.id}_${state.month}` : currentEvent.id],
+      usedEvents: [...s.usedEvents, currentEvent.id],
       currentEvent: null,
       log: [
         ...s.log,
@@ -352,7 +403,15 @@ export const useGameStore = create((set, get) => ({
       ],
     }));
 
-    setTimeout(() => get()._nextEventOrMonth(), 100);
+    // Wait for player to click Continue
+  },
+
+  /**
+   * Player acknowledges feedback and proceeds to next event or month.
+   */
+  continuePastFeedback: () => {
+    set({ lastFeedback: null });
+    get()._nextEventOrMonth();
   },
 
   /**
@@ -400,6 +459,16 @@ export const useGameStore = create((set, get) => ({
     }
 
     get()._drawMonthEvents();
+  },
+
+  adjustState: (changes) => {
+    set(s => ({
+      state: { ...s.state, ...changes },
+      log: [
+        ...s.log,
+        { text: `Strategic adjustment: ${Object.entries(changes).map(([k, v]) => `${k}=${v}`).join(', ')}`, color: 'plan', prefix: '▸' },
+      ],
+    }));
   },
 
   reviseForecast: (newAssumptions) => {
@@ -508,6 +577,7 @@ export const useGameStore = create((set, get) => ({
       currentEvent: null, currentWorldEvent: null,
       usedEvents: [], usedWorlds: [],
       lastFeedback: null, result: null, boardData: null, boardPopup: false,
+      currentHint: null, shownHints: {},
     });
   },
 }));
