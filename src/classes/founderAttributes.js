@@ -125,6 +125,22 @@ export const PRESETS = {
     background: { gender: 'female', class: 'middle', ethnicity: 'majority', age: '30s', special: 'phd' },
     teamModifiers: { fundraisingMultiplier: 0.85, fundraisingAmountMultiplier: 0.9 },
   },
+  marketplace: {
+    label: 'Lena & Marco (Preset)',
+    description: 'Lena Kowalski (Female, 20s, working class, Polish immigrant) & Marco Di Stefano (Male, 30s, middle class, Italian)',
+    difficulty: 'Hard',
+    attributes: { tech: 4, sales: 5, network: 3, domain: 5, resilience: 7, capital: 3 },
+    background: { gender: 'female', class: 'working', ethnicity: 'majority', age: '20s', special: 'none' },
+    teamModifiers: { fundraisingMultiplier: 0.70, fundraisingAmountMultiplier: 0.80 },
+  },
+  service: {
+    label: 'David & Priya (Preset)',
+    description: 'David Ashworth (Male, 40s, privileged, British) & Priya Sharma (Female, 30s, middle class, Indian background)',
+    difficulty: 'Easy',
+    attributes: { tech: 5, sales: 8, network: 8, domain: 7, resilience: 4, capital: 7 },
+    background: { gender: 'male', class: 'privileged', ethnicity: 'majority', age: '40s', special: 'corporate' },
+    teamModifiers: { fundraisingMultiplier: 1.1, fundraisingAmountMultiplier: 1.0 },
+  },
 };
 
 // ─── Modifier Calculation ───

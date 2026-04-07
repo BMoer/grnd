@@ -21,21 +21,29 @@ import { DECISION_EVENTS } from './events/decisions.js';
 function getAdvanceMonth(classId) {
   if (classId === 'consumer') return advanceConsumerMonth;
   if (classId === 'deeptech') return advanceDeepTechMonth;
+  if (classId === 'marketplace') return advanceMarketplaceMonth;
+  if (classId === 'service') return advanceServiceMonth;
   return engineAdvance;
 }
 function getGenerateForecast(classId) {
   if (classId === 'consumer') return generateConsumerForecast;
   if (classId === 'deeptech') return generateDeepTechForecast;
+  if (classId === 'marketplace') return generateMarketplaceForecast;
+  if (classId === 'service') return generateServiceForecast;
   return generateSaaSForecast;
 }
 function getCalculatePMF(classId) {
   if (classId === 'consumer') return calculateConsumerPMF;
   if (classId === 'deeptech') return calculateDeepTechPMF;
+  if (classId === 'marketplace') return calculateMarketplacePMF;
+  if (classId === 'service') return calculateServicePMF;
   return calculateSaaSPMF;
 }
 function getAllEvents(classId) {
   if (classId === 'consumer') return [...CONSUMER_EVENTS, ...DECISION_EVENTS.filter(e => e.months.some(m => m > 8))];
   if (classId === 'deeptech') return [...DEEPTECH_EVENTS, ...DECISION_EVENTS.filter(e => e.months.some(m => m > 12))];
+  if (classId === 'marketplace') return [...MARKETPLACE_EVENTS, ...DECISION_EVENTS.filter(e => e.months.some(m => m > 10))];
+  if (classId === 'service') return [...SERVICE_EVENTS, ...DECISION_EVENTS.filter(e => e.months.some(m => m > 8))];
   return DECISION_EVENTS;
 }
 import { WORLD_EVENTS } from './events/worldEvents.js';
@@ -45,8 +53,12 @@ import { generateSaaSForecast } from './engine/forecastEngine.js';
 import { calculateSaaSPMF } from './engine/pmfCalculator.js';
 import { advanceConsumerMonth, generateConsumerForecast, calculateConsumerPMF } from './engine/consumerEngine.js';
 import { advanceDeepTechMonth, generateDeepTechForecast, calculateDeepTechPMF } from './engine/deeptechEngine.js';
+import { advanceMarketplaceMonth, generateMarketplaceForecast, calculateMarketplacePMF } from './engine/marketplaceEngine.js';
+import { advanceServiceMonth, generateServiceForecast, calculateServicePMF } from './engine/serviceEngine.js';
 import { CONSUMER_EVENTS } from './events/consumerDecisions.js';
 import { DEEPTECH_EVENTS } from './events/deeptechDecisions.js';
+import { MARKETPLACE_EVENTS } from './events/marketplaceDecisions.js';
+import { SERVICE_EVENTS } from './events/serviceDecisions.js';
 import { isBoardMeetingMonth, calculateDeltas, generateBoardFeedback, getBoardPhase } from './engine/boardMeeting.js';
 import { getHint } from './engine/hintEngine.js';
 

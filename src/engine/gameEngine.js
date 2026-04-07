@@ -286,6 +286,9 @@ export function checkEndCondition(state, history, maxMonths = 24) {
   // Death: cash ≤ 0
   if (state.cash <= 0) return 'dead';
 
+  // Burnout penalty: utilization > 100% for extended periods reduces AP
+  // (Not instant death — but compounding penalty via morale/product decay)
+
   // Win: PMF threshold met for 3 consecutive months
   if (history.length >= 4) { // need at least 4 entries (M0 + 3 months)
     const last3 = history.slice(-3);
