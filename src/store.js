@@ -16,11 +16,37 @@
 import { create } from 'zustand';
 import { getClass } from './classes/index.js';
 import { DECISION_EVENTS } from './events/decisions.js';
+
+// Class-aware dispatchers
+function getAdvanceMonth(classId) {
+  if (classId === 'consumer') return advanceConsumerMonth;
+  if (classId === 'deeptech') return advanceDeepTechMonth;
+  return engineAdvance;
+}
+function getGenerateForecast(classId) {
+  if (classId === 'consumer') return generateConsumerForecast;
+  if (classId === 'deeptech') return generateDeepTechForecast;
+  return generateSaaSForecast;
+}
+function getCalculatePMF(classId) {
+  if (classId === 'consumer') return calculateConsumerPMF;
+  if (classId === 'deeptech') return calculateDeepTechPMF;
+  return calculateSaaSPMF;
+}
+function getAllEvents(classId) {
+  if (classId === 'consumer') return [...CONSUMER_EVENTS, ...DECISION_EVENTS.filter(e => e.months.some(m => m > 8))];
+  if (classId === 'deeptech') return [...DEEPTECH_EVENTS, ...DECISION_EVENTS.filter(e => e.months.some(m => m > 12))];
+  return DECISION_EVENTS;
+}
 import { WORLD_EVENTS } from './events/worldEvents.js';
 import { advanceMonth as engineAdvance, checkEndCondition, getAvailableEvents, pickRandom } from './engine/gameEngine.js';
 import { applyEffectsWithVariance } from './engine/varianceEngine.js';
 import { generateSaaSForecast } from './engine/forecastEngine.js';
 import { calculateSaaSPMF } from './engine/pmfCalculator.js';
+import { advanceConsumerMonth, generateConsumerForecast, calculateConsumerPMF } from './engine/consumerEngine.js';
+import { advanceDeepTechMonth, generateDeepTechForecast, calculateDeepTechPMF } from './engine/deeptechEngine.js';
+import { CONSUMER_EVENTS } from './events/consumerDecisions.js';
+import { DEEPTECH_EVENTS } from './events/deeptechDecisions.js';
 import { isBoardMeetingMonth, calculateDeltas, generateBoardFeedback, getBoardPhase } from './engine/boardMeeting.js';
 import { getHint } from './engine/hintEngine.js';
 
@@ -60,8 +86,8 @@ function calculateStateDelta(before, after) {
  * Draw 1-3 events for a month from the available pool.
  * Weighted: month 1-3 → 1-2 events, month 4+ → 2-3 events.
  */
-function drawMonthEvents(month, usedEventIds) {
-  const available = getAvailableEvents(DECISION_EVENTS, month, usedEventIds);
+function drawMonthEvents(month, usedEventIds, classId) {
+  const available = getAvailableEvents(getAllEvents(classId), month, usedEventIds);
   if (available.length === 0) return [];
 
   const maxDraw = month <= 3 ? 2 : 3;
@@ -136,7 +162,7 @@ export const useGameStore = create((set, get) => ({
     const { classId, classConfig, assumptions, founderProfile } = get();
     if (!classConfig) return;
 
-    const forecast = generateSaaSForecast(assumptions);
+    const forecast = getGenerateForecast(classId)(assumptions);
     const em = founderProfile?.engineModifiers ?? {};
 
     // Apply founder modifiers to initial state
@@ -202,8 +228,8 @@ export const useGameStore = create((set, get) => ({
     const { classConfig, usedEvents, usedWorlds, forecast, maxAP } = get();
 
     // Advance month + calculate financials
-    const monthly = engineAdvance(prevState, classConfig);
-    monthly.pmf = calculateSaaSPMF(monthly);
+    const monthly = getAdvanceMonth(get().classId)(prevState, classConfig);
+    monthly.pmf = getCalculatePMF(get().classId)(monthly);
 
     // Natural churn pressure: churn drifts up slightly each month if product isn't improving
     if (monthly.month > 3 && (monthly.product ?? 30) < 40) {
@@ -228,7 +254,7 @@ export const useGameStore = create((set, get) => ({
 
     if (worldEvent) {
       const impacted = worldEvent.effect(monthly);
-      impacted.pmf = calculateSaaSPMF(impacted);
+      impacted.pmf = getCalculatePMF(get().classId)(impacted);
       const newHistory = [...get().history, impacted];
 
       set(s => ({
@@ -299,7 +325,7 @@ export const useGameStore = create((set, get) => ({
    */
   _drawMonthEvents: () => {
     const { state, usedEvents, history, shownHints } = get();
-    const events = drawMonthEvents(state.month, usedEvents);
+    const events = drawMonthEvents(state.month, usedEvents, get().classId);
 
     // Check for contextual hint
     const hint = getHint(state, history, shownHints);
@@ -333,7 +359,7 @@ export const useGameStore = create((set, get) => ({
 
     // Apply effects with variance
     const newState = applyEffectsWithVariance(choice.effects, state);
-    newState.pmf = calculateSaaSPMF(newState);
+    newState.pmf = getCalculatePMF(get().classId)(newState);
 
     const feedback = choice.dynamicFeedback
       ? choice.dynamicFeedback(state)
@@ -377,8 +403,8 @@ export const useGameStore = create((set, get) => ({
 
     const def = currentEvent.defaultOutcome;
     const newState = applyEffectsWithVariance(def.effects, state);
-    newState.pmf = calculateSaaSPMF(newState);
-    const choices = currentEvent.getChoices ? currentEvent.getChoices('saas') : [];
+    newState.pmf = getCalculatePMF(get().classId)(newState);
+    const choices = currentEvent.getChoices ? currentEvent.getChoices(get().classId) : [];
     const forced = !choices.some(ch => ap >= (ch.apCost ?? 1));
 
     const skipDeltas = calculateStateDelta(state, newState);
@@ -472,7 +498,7 @@ export const useGameStore = create((set, get) => ({
   },
 
   reviseForecast: (newAssumptions) => {
-    const forecast = generateSaaSForecast(newAssumptions);
+    const forecast = getGenerateForecast(get().classId)(newAssumptions);
     set(s => ({
       assumptions: newAssumptions,
       forecast,

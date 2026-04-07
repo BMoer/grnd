@@ -109,6 +109,22 @@ export const PRESETS = {
     // Mixed-gender team: gender fundraising penalty reduced, amount penalty removed
     teamModifiers: { fundraisingMultiplier: 0.85, fundraisingAmountMultiplier: 0.9 },
   },
+  consumer: {
+    label: 'Nina & Alex (Preset)',
+    description: 'Nina Volkov (Female, 20s, working class, Ukrainian-Austrian) & Dr. Alex Berger (Male, 30s, middle class, Austrian)',
+    difficulty: 'Medium-Hard',
+    attributes: { tech: 4, sales: 7, network: 4, domain: 5, resilience: 8, capital: 3 },
+    background: { gender: 'female', class: 'working', ethnicity: 'majority', age: '20s', special: 'none' },
+    teamModifiers: { fundraisingMultiplier: 0.75, fundraisingAmountMultiplier: 0.85 },
+  },
+  deeptech: {
+    label: 'Sarah & Thomas (Preset)',
+    description: 'Dr. Sarah Lindström (Female, 30s, middle class, Swedish) & Thomas Huber (Male, 40s, middle class, Austrian)',
+    difficulty: 'Hard (inherent to deep-tech)',
+    attributes: { tech: 9, sales: 2, network: 5, domain: 10, resilience: 6, capital: 4 },
+    background: { gender: 'female', class: 'middle', ethnicity: 'majority', age: '30s', special: 'phd' },
+    teamModifiers: { fundraisingMultiplier: 0.85, fundraisingAmountMultiplier: 0.9 },
+  },
 };
 
 // ─── Modifier Calculation ───

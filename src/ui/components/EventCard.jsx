@@ -1,10 +1,9 @@
 import { useGameStore } from '../../store.js';
 
 export default function EventCard() {
-  const { currentEvent, classConfig, makeChoice, skipEvent, state, ap, monthEvents, monthEventIndex } = useGameStore();
+  const { currentEvent, classConfig, classId, makeChoice, skipEvent, state, ap, monthEvents, monthEventIndex } = useGameStore();
   if (!currentEvent) return null;
-
-  const choices = currentEvent.getChoices ? currentEvent.getChoices('saas') : [];
+  const choices = currentEvent.getChoices ? currentEvent.getChoices(classId) : [];
   const accent = classConfig?.color ?? 'var(--color-saas)';
   const eventText = currentEvent.getText ? currentEvent.getText(state) : currentEvent.text;
 
