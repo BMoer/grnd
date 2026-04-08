@@ -5,3 +5,5 @@ dist/
 .env
 .env.*
 .vercel
+.pi/
+.pi-lens/
