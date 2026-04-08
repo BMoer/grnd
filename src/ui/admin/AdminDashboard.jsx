@@ -9,6 +9,14 @@ import { WORLD_EVENTS } from "../../events/worldEvents.js";
 const POLL_INTERVAL = 5000;
 const API_BASE = "";
 
+const CLASS_LABELS = {
+	saas: "SaaS",
+	consumer: "Consumer",
+	deeptech: "Deep-Tech",
+	marketplace: "Marketplace",
+	service: "Service",
+};
+
 export default function AdminDashboard() {
 	const urlKey = new URLSearchParams(window.location.search).get("key");
 	const [adminKey, setAdminKey] = useState(urlKey || "");
@@ -270,7 +278,7 @@ function PlayerRow({ player, onInject, isInjectOpen, handleInject }) {
 						</span>
 					)}
 				</td>
-				<td className="py-2 px-2">{p.className ?? p.classId}</td>
+				<td className="py-2 px-2">{CLASS_LABELS[p.classId] ?? p.classId}</td>
 				<td className="py-2 px-2">M{p.month}</td>
 				<td
 					className="py-2 px-2"

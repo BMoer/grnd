@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useGameStore } from "../store.js";
 import DeltaTable from "./components/DeltaTable.jsx";
 import ForecastChart from "./components/ForecastChart.jsx";
+import FounderAvatar, { SHORT_NAME_MAP } from "./components/FounderAvatar.jsx";
 
 export default function BoardMeeting() {
 	const {
@@ -178,19 +179,24 @@ export default function BoardMeeting() {
 								: f.tone === "critical"
 									? "var(--color-danger)"
 									: "var(--color-text-secondary)";
+						const speakerKey = (f.speaker || "").toLowerCase();
+						const fullName = SHORT_NAME_MAP[speakerKey] || speakerKey;
 						return (
 							<div key={i} className="mb-3">
-								<span
-									className="text-[10px] font-medium"
-									style={{
-										color: "var(--color-text-muted)",
-										fontFamily: "var(--font-mono)",
-									}}
-								>
-									{f.speaker}:
-								</span>
+								<div className="flex items-center gap-1.5">
+									<FounderAvatar name={fullName} color={accent} size={18} />
+									<span
+										className="text-[10px] font-medium"
+										style={{
+											color: "var(--color-text-muted)",
+											fontFamily: "var(--font-mono)",
+										}}
+									>
+										{f.speaker}:
+									</span>
+								</div>
 								<p
-									className="text-sm leading-relaxed mt-0.5"
+									className="text-sm leading-relaxed mt-0.5 ml-[26px]"
 									style={{ color: toneColor }}
 								>
 									"{f.text}"

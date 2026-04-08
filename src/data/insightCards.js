@@ -30,8 +30,8 @@ const INSIGHT_CARDS = [
 			if (qMonths.length < 2) return false;
 			const churnStart = qMonths[0].churn ?? 0;
 			const churnEnd = qMonths[qMonths.length - 1].churn ?? 0;
-			// Churn increased by ≥2pp AND is above 8%
-			return churnEnd - churnStart >= 2 && churnEnd >= 8;
+			// Churn increased by ≥1.5pp AND is above 6%
+			return churnEnd - churnStart >= 1.5 && churnEnd >= 6;
 		},
 		classes: ["saas", "consumer", "service"],
 	},
@@ -65,7 +65,7 @@ const INSIGHT_CARDS = [
 			`Your LTV:CAC ratio is ${(s.ltvCacRatio ?? 0).toFixed(1)}x. Every new customer costs you money. Growth is accelerating your death.`,
 		why: "Negative unit economics can hide behind top-line growth for months. By the time the cash runs out, the habit of unprofitable growth is hard to break.",
 		trigger: (state) => {
-			return (state.ltvCacRatio ?? 999) < 1.0 && (state.customers ?? 0) > 5;
+			return (state.ltvCacRatio ?? 999) < 1.5 && (state.customers ?? 0) > 3;
 		},
 		classes: ["saas", "consumer", "marketplace"],
 	},
@@ -315,6 +315,33 @@ const INSIGHT_CARDS = [
 			return viral > 0.15 && repeat < 12;
 		},
 		classes: ["consumer"],
+	},
+
+	// ── 15. Planning Fallacy (universal, early-game catch-all) ───
+	{
+		id: "planning-fallacy",
+		title: "Planning Fallacy",
+		what: "Founders systematically overestimate growth and underestimate costs. This is not a character flaw — it is a documented cognitive bias that affects every plan.",
+		experienced: (s) => {
+			const planned = s._qStart?.totalMRR ?? 0;
+			const actual = s.totalMRR ?? s.revenue ?? 0;
+			const cashPlanned = s._qStart?.cash ?? 100000;
+			const cashActual = s.cash ?? 0;
+			if (actual < planned) {
+				return `Your revenue is below what your initial assumptions predicted. Your cash dropped from €${cashPlanned.toLocaleString("en-US")} to €${cashActual.toLocaleString("en-US")} this quarter. The gap between plan and reality is already open.`;
+			}
+			return `Your cash went from €${cashPlanned.toLocaleString("en-US")} to €${cashActual.toLocaleString("en-US")} this quarter. Even when revenue tracks, costs surprise.`;
+		},
+		why: "Kahneman and Tversky showed that people anchor to best-case scenarios. In startups, the planning fallacy kills more companies than bad products — because the plan is the basis for every hire, every spend, every fundraise.",
+		trigger: (state, history, quarter) => {
+			// Triggers at Q1+ when cash has dropped at all — very easy to trigger
+			const qMonths = getQuarterMonths(history, quarter);
+			if (qMonths.length < 2) return false;
+			const cashStart = qMonths[0].cash ?? 100000;
+			const cashEnd = qMonths[qMonths.length - 1].cash ?? 100000;
+			return cashEnd < cashStart * 0.9; // Cash dropped by >10%
+		},
+		classes: null, // all classes
 	},
 ];
 

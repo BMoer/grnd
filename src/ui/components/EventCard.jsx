@@ -1,4 +1,5 @@
 import { useGameStore } from '../../store.js';
+import FounderAvatar, { AVATARS } from './FounderAvatar.jsx';
 
 export default function EventCard() {
   const { currentEvent, classConfig, classId, makeChoice, skipEvent, state, ap, monthEvents, monthEventIndex } = useGameStore();
@@ -25,10 +26,14 @@ export default function EventCard() {
       {/* Speaker */}
       {currentEvent.speaker && (
         <div className="flex items-center gap-2 mb-2">
-          <span
-            className="w-2 h-2 rounded-full inline-block"
-            style={{ background: accent }}
-          />
+          {AVATARS[(currentEvent.speaker || '').toLowerCase()] ? (
+            <FounderAvatar name={currentEvent.speaker} color={accent} size={20} />
+          ) : (
+            <span
+              className="w-2 h-2 rounded-full inline-block"
+              style={{ background: accent }}
+            />
+          )}
           <span className="text-[11px] font-medium" style={{ color: accent, fontFamily: 'var(--font-mono)' }}>
             {currentEvent.speaker}
           </span>
