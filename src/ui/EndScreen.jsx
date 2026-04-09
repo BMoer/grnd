@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { generateLearnings } from "../data/learnings.js";
 import { getReflectionQuestions } from "../data/reflectionQuestions.js";
 import { exportToExcel } from "../export/excelExport.js";
+import { archiveRun, exportRunLog } from "../engine/telemetry.js";
 import { useGameStore } from "../store.js";
 import ForecastChart from "./components/ForecastChart.jsx";
 
@@ -18,6 +19,15 @@ export default function EndScreen() {
 		founderProfile,
 		restart,
 	} = useGameStore();
+	// Auto-archive run to server on game end
+	const archived = useRef(false);
+	useEffect(() => {
+		if (result && state && !archived.current) {
+			archived.current = true;
+			archiveRun({ classId, classConfig, assumptions, founderProfile, history, decisions, result, state });
+		}
+	}, [result, state, classId, classConfig, assumptions, founderProfile, history, decisions]);
+
 	if (!result || !state) return null;
 
 	const accent = classConfig?.color ?? "var(--color-saas)";
@@ -50,6 +60,10 @@ export default function EndScreen() {
 
 	const handleExport = async () => {
 		await exportToExcel(classConfig, history, decisions, forecast, assumptions);
+	};
+
+	const handleRunExport = () => {
+		exportRunLog({ classId, classConfig, assumptions, founderProfile, history, decisions, result, state });
 	};
 
 	return (
@@ -232,6 +246,18 @@ export default function EndScreen() {
 						}}
 					>
 						Download Financial Model
+					</button>
+					<button
+						onClick={handleRunExport}
+						className="px-6 py-3 rounded text-sm font-bold cursor-pointer"
+						style={{
+							background: "var(--color-surface)",
+							color: "var(--color-text)",
+							border: "1px solid var(--color-border)",
+							fontFamily: "var(--font-display)",
+						}}
+					>
+						Download Run Log
 					</button>
 					<button
 						onClick={restart}

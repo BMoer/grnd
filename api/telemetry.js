@@ -7,6 +7,7 @@
 import { kv } from "@vercel/kv";
 
 const PLAYER_TTL = 600; // 10 minutes — auto-expire stale players
+const ARCHIVE_TTL = 604800; // 7 days — archived runs persist for post-workshop review
 
 export default async function handler(req, res) {
 	// CORS
@@ -17,12 +18,20 @@ export default async function handler(req, res) {
 
 	try {
 		if (req.method === "POST") {
-			// Player reports state
 			const data = req.body;
 			if (!data?.playerId) {
 				return res.status(400).json({ error: "playerId required" });
 			}
 
+			// Archive run (long-term storage)
+			if (data.type === "archive") {
+				const archiveKey = `archive:${data.playerId}:${Date.now()}`;
+				await kv.set(archiveKey, data, { ex: ARCHIVE_TTL });
+				await kv.sadd("archived_runs", archiveKey);
+				return res.status(200).json({ ok: true, archived: true });
+			}
+
+			// Player reports state (live telemetry)
 			const playerKey = `player:${data.playerId}`;
 			const payload = {
 				...data,
@@ -36,10 +45,25 @@ export default async function handler(req, res) {
 
 			return res.status(200).json({ ok: true });
 		} else if (req.method === "GET") {
-			// Admin fetches all players
+			// Admin fetches all players or archived runs
 			const adminKey = req.headers["x-admin-key"];
 			if (adminKey !== (process.env.ADMIN_KEY || "grnd2025")) {
 				return res.status(401).json({ error: "unauthorized" });
+			}
+
+			// Return archived runs if requested
+			if (req.query?.type === "archives") {
+				const archiveKeys = await kv.smembers("archived_runs");
+				if (!archiveKeys || archiveKeys.length === 0) {
+					return res.status(200).json({ archives: [] });
+				}
+				const pipeline = kv.pipeline();
+				for (const key of archiveKeys) {
+					pipeline.get(key);
+				}
+				const results = await pipeline.exec();
+				const archives = results.filter(Boolean);
+				return res.status(200).json({ archives });
 			}
 
 			const playerIds = await kv.smembers("active_players");

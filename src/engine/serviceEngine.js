@@ -120,6 +120,34 @@ export function advanceServiceMonth(state, classConfig) {
   else if (utilization > 100) teamMorale = Math.max(0.3, teamMorale - 0.1); // overwork kills morale
   else teamMorale = teamMorale + (1.0 - teamMorale) * 0.15;
 
+  // ─── Burnout consequences (escalating) ───
+  if (burnoutMonths >= 1) {
+    // Level 1: quality drops faster, close rate penalty
+    product = Math.max(10, product - 1);
+    closeRate = Math.max(5, closeRate - 3);
+  }
+  if (burnoutMonths >= 2) {
+    // Level 2: client churn spikes, pipeline drops, morale tanks
+    repeatRate = Math.max(3, repeatRate - 5);
+    pipeline = Math.max(1, pipeline - 3);
+    teamMorale = Math.max(0.3, teamMorale - 0.15);
+  }
+  if (burnoutMonths >= 3) {
+    // Level 3: founders can't focus, quality delivery collapses
+    repeatRate = Math.max(3, repeatRate - 10);
+    product = Math.max(10, product - 3);
+    // AP reduction signaled via maxAP override in return
+  }
+
+  // ─── Team morale effects ───
+  // Product quality: low morale accelerates decay
+  product = Math.max(10, product - (1 - teamMorale) * 1);
+  // Pipeline: morale multiplier on organic leads
+  const moralePipelineMult = 0.85 + teamMorale * 0.15;
+  pipeline = Math.max(1, Math.round(pipeline * moralePipelineMult));
+  // Conversion: morale shifts close rate
+  closeRate = Math.max(5, closeRate + (teamMorale - 1.0) * 3);
+
   return {
     ...s, month,
     activeClients: totalClients, customers: totalClients, activeCustomers: totalClients,
@@ -133,6 +161,7 @@ export function advanceServiceMonth(state, classConfig) {
     price: Math.round(avgProject), cac, ltv: Math.round(ltv), ltvCacRatio,
     churn, product, teamMorale, prevBurnRate: burnBase,
     burnoutMonths,
+    maxAP: burnoutMonths >= 3 ? Math.max(2, (s.maxAP ?? 3) - 1) : s.maxAP,
     conversionRate: closeRate,
     viralCoeff: Math.round(organicLeads * 100 / Math.max(1, totalClients)),
     salesEffort: Math.max(0, (s.salesEffort ?? 0) - 0.2),

@@ -129,6 +129,65 @@ export async function sendTelemetry(gameState, classId, classConfig) {
 	}
 }
 
+// ─── Run Log Export ───────────────────────────────────────────
+
+export function exportRunLog(storeState) {
+	const playerId = getPlayerId();
+	const runLog = {
+		playerId,
+		classId: storeState.classId,
+		className: storeState.classConfig?.name ?? storeState.classId,
+		assumptions: storeState.assumptions,
+		founderProfile: storeState.founderProfile,
+		history: storeState.history,
+		decisions: storeState.decisions,
+		result: storeState.result,
+		finalState: storeState.state,
+		timestamp: new Date().toISOString(),
+	};
+
+	const blob = new Blob([JSON.stringify(runLog, null, 2)], {
+		type: "application/json",
+	});
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement("a");
+	a.href = url;
+	a.download = `grnd-run-${playerId ?? "unknown"}-${Date.now()}.json`;
+	document.body.appendChild(a);
+	a.click();
+	document.body.removeChild(a);
+	URL.revokeObjectURL(url);
+}
+
+export async function archiveRun(storeState) {
+	const playerId = getPlayerId();
+	if (!playerId) return;
+
+	const payload = {
+		type: "archive",
+		playerId,
+		classId: storeState.classId,
+		className: storeState.classConfig?.name ?? storeState.classId,
+		assumptions: storeState.assumptions,
+		founderProfile: storeState.founderProfile,
+		history: storeState.history,
+		decisions: storeState.decisions,
+		result: storeState.result,
+		finalState: storeState.state,
+		timestamp: new Date().toISOString(),
+	};
+
+	try {
+		await fetch(`${API_BASE}/api/telemetry`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(payload),
+		});
+	} catch {
+		// Archive failure is non-critical — silently ignore
+	}
+}
+
 // ─── Event Injection Poller ────────────────────────────────────
 
 export async function pollInjectedEvent() {

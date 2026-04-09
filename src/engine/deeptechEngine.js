@@ -141,6 +141,13 @@ export function advanceDeepTechMonth(state, classConfig) {
   else if (burnDelta > 3000) teamMorale = Math.max(0.5, teamMorale - 0.1);
   else teamMorale = teamMorale + (1.0 - teamMorale) * 0.1;
 
+  // ─── Team morale effects ───
+  // Product quality (TRL): low morale slows R&D progress
+  productQuality = Math.max(10, productQuality - (1 - teamMorale) * 1);
+  // Pipeline: morale affects pilot conversations
+  const moralePipelineMult = 0.85 + teamMorale * 0.15;
+  pipeline = Math.max(1, Math.round(pipeline * moralePipelineMult));
+
   // IP filings
   const ipFilings = (s.ipFilings ?? 0) + (productQuality > 45 && month % 6 === 0 ? 1 : 0);
 

@@ -137,6 +137,12 @@ export function advanceConsumerMonth(state, classConfig) {
     teamMorale = teamMorale + (1.0 - teamMorale) * 0.15;
   }
 
+  // ─── Team morale effects ───
+  // Product quality: low morale accelerates decay
+  product = Math.max(10, product - (1 - teamMorale) * 1);
+  // Conversion: morale shifts repeat rate
+  repeatRate = Math.max(corridorRepeat.min, repeatRate + (teamMorale - 1.0) * 3);
+
   return {
     ...s,
     month,

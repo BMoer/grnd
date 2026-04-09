@@ -360,7 +360,7 @@ function PlayerRow({ player, onInject, isInjectOpen, handleInject }) {
 								<button
 									key={evt.id}
 									onClick={() => handleInject(p.playerId, evt)}
-									className="px-3 py-1.5 rounded text-[10px] cursor-pointer"
+									className="px-3 py-1.5 rounded text-[10px] cursor-pointer flex flex-col items-start gap-0.5"
 									style={{
 										background: "var(--color-canvas)",
 										border: "1px solid var(--color-border)",
@@ -369,7 +369,15 @@ function PlayerRow({ player, onInject, isInjectOpen, handleInject }) {
 									}}
 									title={evt.flavor}
 								>
-									{evt.title}
+									<span>{evt.title}</span>
+									{evt.hint && (
+										<span
+											className="text-[8px]"
+											style={{ color: "var(--color-text-muted)" }}
+										>
+											{evt.hint}
+										</span>
+									)}
 								</button>
 							))}
 						</div>

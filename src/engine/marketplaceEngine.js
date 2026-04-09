@@ -137,6 +137,12 @@ export function advanceMarketplaceMonth(state, classConfig) {
   else if (burnDelta > 1000 && burnDelta / prevBurnRate > 0.3) teamMorale = Math.max(0.5, teamMorale - 0.1);
   else teamMorale = teamMorale + (1.0 - teamMorale) * 0.15;
 
+  // ─── Team morale effects ───
+  // Product quality: low morale accelerates decay
+  product = Math.max(10, product - (1 - teamMorale) * 1);
+  // Match rate: morale affects platform quality → matching
+  matchRate = Math.max(2, matchRate + (teamMorale - 1.0) * 3);
+
   return {
     ...s, month, supply, demand,
     customers: supply + demand, activeCustomers: supply + demand,
