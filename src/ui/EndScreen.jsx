@@ -34,6 +34,7 @@ export default function EndScreen() {
 		pmf: "Product-Market Fit",
 		dead: "Game Over",
 		survived: "Survived",
+		acquired: "Acquired",
 	}[result];
 
 	const resultText = {

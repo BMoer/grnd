@@ -21,7 +21,7 @@ export const deeptech = {
   model: {
     revenueType: 'Unit Sales',
     keyMetric: 'Certification Progress & LOIs',
-    deathBy: 'Grant runs out before certification',
+    deathBy: 'Cash hits zero before revenue',
     winBy: 'PMF Score ≥ 85 for 3 months',
   },
 
@@ -120,11 +120,11 @@ export const deeptech = {
     `M${r[0]}`,
     `€${(r[1] ?? 0).toLocaleString('en-US')}`,
     `€${(r[2] ?? 0).toLocaleString('en-US')}`,
-    `${Math.round(r[3])}%`,
-    `${r[4]}`,
-    `${r[5]}`,
+    `${Math.round(r[3] ?? 0)}%`,
+    `${r[4] ?? 0}`,
+    `${r[5] ?? 0}`,
     `€${(r[6] ?? 0).toLocaleString('en-US')}`,
     `€${(r[7] ?? 0).toLocaleString('en-US')}`,
-    r[8] > 24 ? '24+' : `${r[8]} mo`,
+    (r[8] ?? 0) > 24 ? '24+' : `${r[8] ?? 0} mo`,
   ],
 };

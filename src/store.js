@@ -40,26 +40,18 @@ function getCalculatePMF(classId) {
 	return calculateSaaSPMF;
 }
 function getAllEvents(classId) {
+	const shared = (minMonth) =>
+		DECISION_EVENTS.filter(
+			(e) => !e.saasOnly && e.months.some((m) => m > minMonth),
+		);
 	if (classId === "consumer")
-		return [
-			...CONSUMER_EVENTS,
-			...DECISION_EVENTS.filter((e) => e.months.some((m) => m > 8)),
-		];
+		return [...CONSUMER_EVENTS, ...shared(8)];
 	if (classId === "deeptech")
-		return [
-			...DEEPTECH_EVENTS,
-			...DECISION_EVENTS.filter((e) => e.months.some((m) => m > 12)),
-		];
+		return [...DEEPTECH_EVENTS, ...shared(12)];
 	if (classId === "marketplace")
-		return [
-			...MARKETPLACE_EVENTS,
-			...DECISION_EVENTS.filter((e) => e.months.some((m) => m > 10)),
-		];
+		return [...MARKETPLACE_EVENTS, ...shared(10)];
 	if (classId === "service")
-		return [
-			...SERVICE_EVENTS,
-			...DECISION_EVENTS.filter((e) => e.months.some((m) => m > 8)),
-		];
+		return [...SERVICE_EVENTS, ...shared(8)];
 	return DECISION_EVENTS;
 }
 
@@ -123,7 +115,7 @@ function calculateStateDelta(before, after) {
 		{ key: "totalMRR", label: "MRR", prefix: "€", round: true },
 		{ key: "customers", label: "Customers", round: true },
 		{ key: "churn", label: "Churn", suffix: "%", decimals: 1 },
-		{ key: "product", label: "Produkt", round: true },
+		{ key: "product", label: "Product", round: true },
 		{ key: "pipeline", label: "Pipeline", round: true },
 		{ key: "cash", label: "Cash", prefix: "€", round: true },
 		{ key: "burnRate", label: "Burn", prefix: "€", round: true },
@@ -234,6 +226,10 @@ export const useGameStore = create((set, get) => ({
 			assumptions: defaults,
 			screen: "character",
 		});
+	},
+
+	goToTitle: () => {
+		set({ screen: "title" });
 	},
 
 	setFounderProfile: (profile) => {
@@ -527,6 +523,7 @@ export const useGameStore = create((set, get) => ({
 	 */
 	makeChoice: (choice) => {
 		const { state, currentEvent, ap } = get();
+		if (!currentEvent) return;
 
 		// Apply effects with variance
 		const newState = applyEffectsWithVariance(choice.effects, state);

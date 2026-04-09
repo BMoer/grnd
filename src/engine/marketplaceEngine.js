@@ -102,7 +102,7 @@ export function advanceMarketplaceMonth(state, classConfig) {
 
   // Liquidity: % of active users who transacted
   const totalActive = supply + demand;
-  const liquidity = totalActive > 0 ? Math.round(transactions * 2 / totalActive * 100) : 0; // *2 because each transaction involves 2 users
+  const liquidity = totalActive > 0 ? Math.min(100, Math.round(transactions * 2 / totalActive * 100)) : 0; // *2 because each transaction involves 2 users, cap at 100%
 
   // ─── Costs ───
   const initialBurn = classConfig?.initial?.burnRate ?? 3000;
@@ -183,7 +183,7 @@ export function generateMarketplaceForecast(assumptions) {
     months.push({
       month: m, supply: sup, demand: dem, customers: sup + dem, cash,
       matches: mat, transactions: txn, gmv, revenue: rev, totalMRR: rev,
-      liquidity: (sup + dem) > 0 ? Math.round(txn * 2 / (sup + dem) * 100) : 0,
+      liquidity: (sup + dem) > 0 ? Math.min(100, Math.round(txn * 2 / (sup + dem) * 100)) : 0,
       burnRate: 3000, totalBurn: Math.round(burn), runway: (burn - rev) > 0 ? Math.floor(Math.max(0, cash) / (burn - rev)) : 99,
       churn: (supplyChurn + demandChurn) / 2, ltvCacRatio: 0, cac: (supplyCAC + demandCAC) / 2,
     });

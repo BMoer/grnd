@@ -124,12 +124,12 @@ export const marketplace = {
   formatRow: (r) => [
     `M${r[0]}`,
     `€${(r[1] ?? 0).toLocaleString('en-US')}`,
-    `${r[2]}`, `${r[3]}`,
-    `${r[4]}`,
+    `${r[2] ?? 0}`, `${r[3] ?? 0}`,
+    `${r[4] ?? 0}`,
     `€${(r[5] ?? 0).toLocaleString('en-US')}`,
     `€${(r[6] ?? 0).toLocaleString('en-US')}`,
-    `${typeof r[7] === 'number' ? r[7].toFixed(0) : r[7]}%`,
+    `${typeof r[7] === 'number' && isFinite(r[7]) ? Math.min(100, r[7]).toFixed(0) : '0'}%`,
     `€${(r[8] ?? 0).toLocaleString('en-US')}`,
-    r[9] > 24 ? '24+' : `${r[9]} mo`,
+    (r[9] ?? 0) > 24 ? '24+' : `${r[9] ?? 0} mo`,
   ],
 };

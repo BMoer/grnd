@@ -195,11 +195,11 @@ export const DECISION_EVENTS = [
           const approved = Math.random() > 0.5;
           if (approved) {
             const pending = [...(s.pendingEffects ?? []), { month: (s.month ?? 0) + 2, changes: { cash: 50000 } }];
-            return { ...s, pendingEffects: pending, product: s.product + 1 };
+            return { ...s, pendingEffects: pending, product: s.product + 1, _grantApproved: true };
           }
-          return { ...s, product: s.product + 1 };
+          return { ...s, product: s.product + 1, _grantApproved: false };
         },
-        dynamicFeedback: () => Math.random() > 0.5
+        dynamicFeedback: (s) => s._grantApproved
           ? 'Split attention, mediocre application. But it got approved — €50K arrives in 2 months.'
           : 'Split attention, mediocre application. Rejected. The time spent was wasted.',
       },
@@ -936,6 +936,7 @@ export const DECISION_EVENTS = [
 
   {
     id: 'acquihire_offer',
+    saasOnly: true,
     months: [16, 17, 18],
     title: 'Acqui-hire Offer',
     getText: (s) => {
@@ -1032,6 +1033,7 @@ export const DECISION_EVENTS = [
 
   {
     id: 'market_consolidation',
+    saasOnly: true,
     months: [16, 17, 18, 19],
     title: 'Market Consolidation',
     text: 'Two of your competitors just merged. The combined entity has 10x your customer base and announced aggressive pricing. The market is shrinking to fewer, bigger players.',
@@ -1081,6 +1083,7 @@ export const DECISION_EVENTS = [
 
   {
     id: 'international',
+    saasOnly: true,
     months: [16, 17, 18, 19, 20],
     title: 'International Expansion',
     text: 'A restaurant group in Vienna wants your product. Then one in Zurich emails. DACH market is calling. But localization, support hours, compliance...',
@@ -1224,6 +1227,7 @@ export const DECISION_EVENTS = [
 
   {
     id: 'support_escalation',
+    saasOnly: true,
     months: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
     title: 'Support Escalation',
     getText: (s) => {
@@ -1270,6 +1274,7 @@ export const DECISION_EVENTS = [
 
   {
     id: 'upsell_opportunity',
+    saasOnly: true,
     months: [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
     title: 'Upsell Opportunity',
     getText: (s) => {
@@ -1315,6 +1320,7 @@ export const DECISION_EVENTS = [
 
   {
     id: 'partnership_offer',
+    saasOnly: true,
     months: [10, 11, 12, 13, 14, 15, 16, 17, 18],
     title: 'Partnership Offer',
     text: 'A POS (Point of Sale) system used by 2,000 restaurants wants to integrate with your product. They want a revenue share deal.',
@@ -1356,6 +1362,7 @@ export const DECISION_EVENTS = [
 
   {
     id: 'technical_debt',
+    saasOnly: true,
     months: [9, 10, 11, 12, 13, 14, 15, 16],
     title: 'Technical Debt Reckoning',
     getText: (s) => `The codebase that was "good enough" 6 months ago is now slowing everything down. Deploy times tripled. Bug reports up 40%. Jonas wants 3 weeks to refactor. Mira wants to ship the feature that closes a €${(s.mrrPerCustomer || 49) * 5} deal.`,
@@ -1403,6 +1410,7 @@ export const DECISION_EVENTS = [
 
   {
     id: 'cash_crunch',
+    saasOnly: true,
     months: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24],
     title: 'The Cash Conversation',
     getText: (s) => {
@@ -1607,6 +1615,7 @@ export const DECISION_EVENTS = [
 
   {
     id: 'data_privacy_scare',
+    saasOnly: true,
     months: [8, 9, 10, 11, 12],
     title: 'The Data Privacy Scare',
     text: 'A customer\'s accountant asked: "Where is our data stored? Are you GDPR compliant?" You\'re pretty sure you are. Pretty sure.',
@@ -1648,6 +1657,7 @@ export const DECISION_EVENTS = [
 
   {
     id: 'product_vision',
+    saasOnly: true,
     months: [12, 13, 14, 15, 16],
     title: 'Product Vision Fork',
     text: 'Two paths: AI-powered demand prediction (sexy, differentiated, risky) or bulletproof operations toolkit (boring, reliable, needed). The market wants both but you can only build one well.',
@@ -1844,6 +1854,7 @@ export const DECISION_EVENTS = [
 
   {
     id: 'strategic_pivot',
+    saasOnly: true,
     months: [14, 15, 16, 17, 18, 19],
     title: 'The Pivot Question',
     getText: (s) => {
@@ -1943,6 +1954,7 @@ export const DECISION_EVENTS = [
 
   {
     id: 'press_opportunity',
+    saasOnly: true,
     months: [10, 11, 12, 13, 14, 15, 16],
     title: 'Press Opportunity',
     text: 'A journalist from a food industry magazine wants to profile your startup. Great exposure — but she wants to shadow you for a week. A WEEK.',
@@ -2053,6 +2065,7 @@ export const DECISION_EVENTS = [
 
   {
     id: 'seasonal_dip',
+    saasOnly: true,
     months: [6, 7, 8, 14, 15, 16, 20, 21, 22],
     title: 'Seasonal Slowdown',
     getText: (s) => {
@@ -2231,7 +2244,7 @@ export const DECISION_EVENTS = [
         totalMRR: Math.max(0, (s.totalMRR ?? 0) - (s.price || 49)),
         churn: Math.min(20, s.churn + 1),
       }),
-      feedback: 'Thomas cancelled. Told everyone at the Gastro-Stammtisch. Two prospects went cold.',
+      feedback: "Thomas cancelled. Told everyone in the restaurant owners' group chat. Two prospects went cold.",
     },
     getChoices: () => [
       {
@@ -2343,6 +2356,7 @@ export const DECISION_EVENTS = [
 
   {
     id: 'competitor_feature',
+    saasOnly: true,
     speaker: 'Jonas Richter',
     speakerRole: 'Co-founder, Tech',
     months: [6, 7, 8, 9, 10],
@@ -2392,6 +2406,7 @@ export const DECISION_EVENTS = [
 
   {
     id: 'employee_conflict',
+    saasOnly: true,
     speaker: 'Lisa, Junior Developer',
     speakerRole: 'Employee',
     months: [7, 8, 9, 10, 11, 12],
@@ -2429,6 +2444,7 @@ export const DECISION_EVENTS = [
 
   {
     id: 'logo_customer',
+    saasOnly: true,
     speaker: 'Mira Chen',
     speakerRole: 'Co-founder, Product',
     months: [8, 9, 10, 11, 12],
@@ -2469,6 +2485,7 @@ export const DECISION_EVENTS = [
 
   {
     id: 'pricing_pressure',
+    saasOnly: true,
     speaker: 'Thomas, Restaurant Owner',
     speakerRole: 'Long-term Customer',
     months: [13, 14, 15, 16, 17, 18],
@@ -2516,6 +2533,7 @@ export const DECISION_EVENTS = [
 
   {
     id: 'team_growing_pains',
+    saasOnly: true,
     speaker: 'Jonas Richter',
     speakerRole: 'Co-founder, Tech',
     months: [10, 11, 12, 13, 14],
@@ -2552,6 +2570,7 @@ export const DECISION_EVENTS = [
 
   {
     id: 'customer_case_study',
+    saasOnly: true,
     speaker: 'Mira Chen',
     speakerRole: 'Co-founder, Product',
     months: [10, 11, 12, 13, 14, 15],
@@ -2587,6 +2606,7 @@ export const DECISION_EVENTS = [
 
   {
     id: 'burnout_warning',
+    saasOnly: true,
     speaker: 'Mira Chen',
     speakerRole: 'Co-founder, Product',
     months: [14, 15, 16, 17, 18],
@@ -2624,6 +2644,7 @@ export const DECISION_EVENTS = [
 
   {
     id: 'expansion_opportunity',
+    saasOnly: true,
     speaker: 'Klaus, Advisor',
     speakerRole: 'Advisor',
     months: [16, 17, 18, 19, 20],
@@ -2662,6 +2683,7 @@ export const DECISION_EVENTS = [
 
   {
     id: 'churn_interview',
+    saasOnly: true,
     speaker: 'Mira Chen',
     speakerRole: 'Co-founder, Product',
     months: [8, 9, 10, 11, 12, 13, 14, 15, 16],
@@ -2703,6 +2725,7 @@ export const DECISION_EVENTS = [
 
   {
     id: 'platform_opportunity',
+    saasOnly: true,
     speaker: 'Laura, BD Manager',
     speakerRole: 'Food Delivery Platform',
     months: [15, 16, 17, 18, 19, 20],
@@ -2741,6 +2764,7 @@ export const DECISION_EVENTS = [
 
   {
     id: 'founder_equity_talk',
+    saasOnly: true,
     speaker: 'Jonas Richter',
     speakerRole: 'Co-founder, Tech',
     months: [18, 19, 20, 21, 22],
@@ -2780,6 +2804,7 @@ export const DECISION_EVENTS = [
 
   {
     id: 'end_of_runway_clarity',
+    saasOnly: true,
     speaker: 'Mira Chen',
     speakerRole: 'Co-founder, Product',
     months: [20, 21, 22, 23, 24],

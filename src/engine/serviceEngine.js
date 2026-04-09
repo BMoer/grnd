@@ -93,9 +93,10 @@ export function advanceServiceMonth(state, classConfig) {
   const miscCreep = month > 2 ? Math.round(month * 30) : 0;
   const totalBurn = burnBase + deliveryCost + salesCost + miscCreep;
 
-  const grossMargin = revenue > 0 ? Math.round((revenue - deliveryCost) / revenue * 100) : 0;
+  const grossMarginRaw = revenue > 0 ? Math.round((revenue - deliveryCost) / revenue * 100) : 0;
+  const grossMargin = Math.max(0, grossMarginRaw);
   // Margin corridor pull
-  const actualMargin = Math.round(grossMargin * 0.7 + cMargin.center * 0.3);
+  const actualMargin = Math.max(0, Math.round(grossMargin * 0.7 + cMargin.center * 0.3));
 
   const cash = Math.round((s.cash ?? 40000) - totalBurn + revenue);
   const netBurn = Math.max(0, totalBurn - revenue);

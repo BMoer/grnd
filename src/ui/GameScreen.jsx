@@ -265,7 +265,7 @@ export default function GameScreen() {
       {boardPopup && <BoardMeetingPopup />}
 
       {/* Tutorial overlay on first game */}
-      {showTutorial && <Tutorial onClose={() => setShowTutorial(false)} accent={accent} />}
+      {showTutorial && <Tutorial onClose={() => setShowTutorial(false)} accent={accent} classId={classConfig.id} />}
     </div>
   );
 }

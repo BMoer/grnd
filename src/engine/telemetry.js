@@ -3,6 +3,8 @@
 // Also handles: player name, localStorage persistence, event polling
 // ═══════════════════════════════════════════════════════════════
 
+import { WORLD_EVENTS as _worldEvents } from "../events/worldEvents.js";
+
 const API_BASE = import.meta.env.PROD ? "" : "";
 // In dev, Vite proxy or same-origin. In prod, same Vercel domain.
 
@@ -139,7 +141,11 @@ export async function pollInjectedEvent() {
 		);
 		if (!res.ok) return null;
 		const data = await res.json();
-		return data.event ?? null;
+		// Server stores event ID only (functions can't serialize through KV)
+		// Reconstruct the full event object from the local WORLD_EVENTS array
+		const eventId = data.eventId ?? data.event?.id ?? null;
+		if (!eventId) return null;
+		return _worldEvents.find((w) => w.id === eventId) ?? null;
 	} catch {
 		return null; // Network error — no injected event
 	}

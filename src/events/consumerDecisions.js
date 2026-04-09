@@ -113,12 +113,16 @@ export const CONSUMER_EVENTS = [
     getChoices: () => [
       {
         text: 'Do the deal — €3K for 200K eyeballs',
-        dynamicFeedback: (s) => Math.random() > 0.4
+        dynamicFeedback: (s) => s._influencerHit
           ? '142 orders in 48 hours. CAC = €21/order from the collab. She posted a genuine review. Her audience trusted her. When influencer marketing works, it WORKS.'
           : '23 orders. Her audience didn\'t convert. She posted it between a protein shake and a vacation photo. Influencer marketing is roulette with better odds.',
-        effects: (s) => Math.random() > 0.4
-          ? { ...s, cash: s.cash - 3000, customers: (s.customers ?? 200) + 50, activeCustomers: (s.activeCustomers ?? 200) + 50, revenue: (s.revenue ?? 0) + 50 * (s.aov ?? 35), pipeline: (s.pipeline ?? 0) + 10, viralCoeff: Math.min(150, (s.viralCoeff ?? 30) + 5) }
-          : { ...s, cash: s.cash - 3000, customers: (s.customers ?? 200) + 10, activeCustomers: (s.activeCustomers ?? 200) + 10, pipeline: (s.pipeline ?? 0) + 3 },
+        effects: (s) => {
+          const hit = Math.random() > 0.4;
+          if (hit) {
+            return { ...s, cash: s.cash - 3000, customers: (s.customers ?? 200) + 50, activeCustomers: (s.activeCustomers ?? 200) + 50, revenue: (s.revenue ?? 0) + 50 * (s.aov ?? 35), pipeline: (s.pipeline ?? 0) + 10, viralCoeff: Math.min(150, (s.viralCoeff ?? 30) + 5), _influencerHit: true };
+          }
+          return { ...s, cash: s.cash - 3000, customers: (s.customers ?? 200) + 10, activeCustomers: (s.activeCustomers ?? 200) + 10, pipeline: (s.pipeline ?? 0) + 3, _influencerHit: false };
+        },
       },
       {
         text: 'Counter-offer: revenue share instead of flat fee',
@@ -141,7 +145,7 @@ export const CONSUMER_EVENTS = [
     months: [4, 5, 6],
     title: 'The Retention Wall',
     text: '"Month 2 retention is 40%. Month 3 drops to 15%. Month 4 is 8%. People try it, like it, and then... forget. We\'re acquiring customers who don\'t stick."',
-    apCost: 2,
+    apCost: 1,
     defaultOutcome: {
       effects: (s) => ({ ...s, repeatRate: Math.max(3, (s.repeatRate ?? 15) - 2), product: Math.max(10, s.product - 3) }),
       feedback: 'Retention kept dropping. Your CAC buys a one-time customer. The math doesn\'t work unless they come back.',

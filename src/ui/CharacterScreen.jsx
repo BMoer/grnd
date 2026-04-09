@@ -26,7 +26,7 @@ const ATTR_KEYS = [
 const TOTAL_POINTS = 30;
 
 export default function CharacterScreen() {
-	const { classConfig, setFounderProfile, screen } = useGameStore();
+	const { classConfig, setFounderProfile, goToTitle, screen } = useGameStore();
 	const [mode, setMode] = useState("preset"); // 'preset' | 'custom'
 	const [attrs, setAttrs] = useState({
 		tech: 5,
@@ -138,6 +138,20 @@ export default function CharacterScreen() {
 			style={{ background: "var(--color-canvas)" }}
 		>
 			<div className="w-full max-w-2xl">
+				{/* Back */}
+				<button
+					onClick={goToTitle}
+					className="mb-4 text-[11px] cursor-pointer"
+					style={{
+						color: "var(--color-text-muted)",
+						background: "none",
+						border: "none",
+						fontFamily: "var(--font-mono)",
+					}}
+				>
+					← Back to class selection
+				</button>
+
 				{/* Header */}
 				<div className="mb-6">
 					<div className="flex items-center gap-2 mb-2">

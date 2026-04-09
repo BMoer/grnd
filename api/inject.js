@@ -27,8 +27,12 @@ export default async function handler(req, res) {
 			}
 
 			const queueKey = `inject:${playerId}`;
-			// Store single pending event (overwrites previous — one at a time)
-			await kv.set(queueKey, { event, injectedAt: Date.now() }, { ex: 300 }); // 5min TTL
+			// Store only the event ID — functions can't survive JSON serialization
+			await kv.set(
+				queueKey,
+				{ eventId: event.id, injectedAt: Date.now() },
+				{ ex: 300 },
+			); // 5min TTL
 
 			return res.status(200).json({ ok: true });
 		} else if (req.method === "GET") {

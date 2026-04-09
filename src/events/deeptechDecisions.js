@@ -29,7 +29,7 @@ export const DEEPTECH_EVENTS = [
       {
         text: 'Market first — 95% accuracy is enough to start conversations',
         dynamicFeedback: (s) => (s.product ?? 20) < 30
-          ? 'The demo failed in front of the first prospect. 95% accuracy in the lab turned out to be 82% in a real kitchen. You demoed too early.'
+          ? 'The demo failed in front of the first prospect. 95% accuracy in the lab turned out to be 82% on a real production line. You demoed too early.'
           : 'Two food manufacturers agreed to discuss pilots. They don\'t need 99.9% — they need "better than what we have now." The bar was lower than Sarah thought.',
         effects: (s) => (s.product ?? 20) < 30
           ? { ...s, product: Math.max(10, s.product - 2), pilotConversations: (s.pilotConversations ?? 0) + 1 }

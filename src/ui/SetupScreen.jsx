@@ -1,10 +1,22 @@
 import { useMemo, useState } from "react";
+import { generateConsumerForecast } from "../engine/consumerEngine.js";
+import { generateDeepTechForecast } from "../engine/deeptechEngine.js";
 import { generateSaaSForecast } from "../engine/forecastEngine.js";
+import { generateMarketplaceForecast } from "../engine/marketplaceEngine.js";
+import { generateServiceForecast } from "../engine/serviceEngine.js";
 import { useGameStore } from "../store.js";
 import { FounderAvatarPair } from "./components/FounderAvatar.jsx";
 
+function getSetupForecast(classId) {
+	if (classId === "consumer") return generateConsumerForecast;
+	if (classId === "deeptech") return generateDeepTechForecast;
+	if (classId === "marketplace") return generateMarketplaceForecast;
+	if (classId === "service") return generateServiceForecast;
+	return generateSaaSForecast;
+}
+
 export default function SetupScreen() {
-	const { classConfig, assumptions, updateAssumption, startGame } =
+	const { classId, classConfig, assumptions, updateAssumption, startGame } =
 		useGameStore();
 	const [mode, setMode] = useState("presets"); // 'presets' | 'custom'
 	const [selectedPreset, setSelectedPreset] = useState("neutral");
@@ -25,10 +37,10 @@ export default function SetupScreen() {
 		}
 	};
 
-	// Live forecast preview
+	// Live forecast preview — dispatches per class
 	const forecast = useMemo(
-		() => generateSaaSForecast(assumptions),
-		[assumptions],
+		() => getSetupForecast(classId)(assumptions),
+		[classId, assumptions],
 	);
 	const month12 = forecast[12] ?? {};
 	const month6 = forecast[6] ?? {};
@@ -225,23 +237,7 @@ export default function SetupScreen() {
 									</div>
 									{/* Show key numbers */}
 									{isSelected && (
-										<div
-											className="grid grid-cols-3 gap-2 mt-3 pt-3"
-											style={{ borderTop: "1px solid var(--color-border)" }}
-										>
-											<MiniStat
-												label="Price"
-												value={`€${preset.assumptions.price}/mo`}
-											/>
-											<MiniStat
-												label="Churn"
-												value={`${preset.assumptions.churnRate}%`}
-											/>
-											<MiniStat
-												label="Pipeline"
-												value={`${preset.assumptions.pipelineGrowth}/mo`}
-											/>
-										</div>
+										<PresetStats classId={classId} assumptions={preset.assumptions} />
 									)}
 								</button>
 							);
@@ -348,21 +344,21 @@ export default function SetupScreen() {
 					</div>
 					<div className="grid grid-cols-2 md:grid-cols-4 gap-3">
 						<ForecastStat
-							label="M6 MRR"
-							value={`€${month6.totalMRR?.toLocaleString("en-US") ?? "0"}`}
+							label={classId === "saas" ? "M6 MRR" : "M6 Revenue"}
+							value={`€${(month6.totalMRR ?? month6.revenue ?? 0).toLocaleString("en-US")}`}
 						/>
 						<ForecastStat
-							label="M12 MRR"
-							value={`€${month12.totalMRR?.toLocaleString("en-US") ?? "0"}`}
+							label={classId === "saas" ? "M12 MRR" : "M12 Revenue"}
+							value={`€${(month12.totalMRR ?? month12.revenue ?? 0).toLocaleString("en-US")}`}
 						/>
 						<ForecastStat
-							label="M12 Customers"
-							value={`${month12.customers ?? 0}`}
+							label={classId === "deeptech" ? "M12 Cert %" : "M12 Customers"}
+							value={classId === "deeptech" ? `${Math.round(month12.certProgress ?? 0)}%` : `${month12.customers ?? 0}`}
 						/>
 						<ForecastStat
 							label="M12 Cash"
-							value={`€${month12.cash?.toLocaleString("en-US") ?? "0"}`}
-							sub={month12.cash < 0 ? "Bankrupt before M12" : undefined}
+							value={`€${(month12.cash ?? 0).toLocaleString("en-US")}`}
+							sub={(month12.cash ?? 0) < 0 ? "Bankrupt before M12" : undefined}
 						/>
 					</div>
 				</div>
@@ -449,6 +445,47 @@ function MiniStat({ label, value }) {
 			>
 				{value}
 			</div>
+		</div>
+	);
+}
+
+function PresetStats({ classId, assumptions }) {
+	const STATS = {
+		saas: [
+			["Price", `€${assumptions.price}/mo`],
+			["Churn", `${assumptions.churnRate}%`],
+			["Pipeline", `${assumptions.pipelineGrowth}/mo`],
+		],
+		consumer: [
+			["AOV", `€${assumptions.aov}`],
+			["Repeat", `${assumptions.repeatRate}%`],
+			["Ad Spend", `€${assumptions.adSpend}`],
+		],
+		deeptech: [
+			["Unit Price", `€${assumptions.unitPrice}`],
+			["Cert", `${assumptions.certTimeline}mo`],
+			["R&D", `€${assumptions.rdBurn}/mo`],
+		],
+		marketplace: [
+			["Take Rate", `${assumptions.takeRate}%`],
+			["Match Rate", `${assumptions.matchRate}%`],
+			["Avg Txn", `€${assumptions.avgTransaction}`],
+		],
+		service: [
+			["Avg Project", `€${assumptions.avgProject}`],
+			["Close Rate", `${assumptions.closeRate}%`],
+			["Capacity", `${assumptions.teamCapacity}h`],
+		],
+	};
+	const stats = STATS[classId] ?? STATS.saas;
+	return (
+		<div
+			className="grid grid-cols-3 gap-2 mt-3 pt-3"
+			style={{ borderTop: "1px solid var(--color-border)" }}
+		>
+			{stats.map(([label, value]) => (
+				<MiniStat key={label} label={label} value={value} />
+			))}
 		</div>
 	);
 }
