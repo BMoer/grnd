@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { WORLD_EVENTS } from "../../events/worldEvents.js";
+import { recommendEvent } from "../../engine/eventRecommender.js";
 
 const POLL_INTERVAL = 5000;
 const API_BASE = "";
@@ -261,6 +262,7 @@ function PlayerRow({ player, onInject, isInjectOpen, handleInject }) {
 
 	// Available events for this player's class
 	const availableEvents = WORLD_EVENTS; // World events are universal
+	const suggestion = recommendEvent(p);
 
 	return (
 		<>
@@ -349,6 +351,39 @@ function PlayerRow({ player, onInject, isInjectOpen, handleInject }) {
 						className="py-2 px-2"
 						style={{ background: "var(--color-surface)" }}
 					>
+						{suggestion && (
+							<div
+								className="flex items-center gap-3 mb-3 px-3 py-2 rounded text-[10px]"
+								style={{
+									border: "2px solid var(--color-growth)",
+									background: "rgba(76, 175, 80, 0.08)",
+									fontFamily: "var(--font-mono)",
+								}}
+							>
+								<span className="font-bold" style={{ color: "var(--color-growth)" }}>
+									Suggested:
+								</span>
+								<span className="font-bold" style={{ color: "var(--color-text)" }}>
+									{suggestion.event.title}
+								</span>
+								<span style={{ color: "var(--color-text-muted)" }}>
+									— {suggestion.reason}
+								</span>
+								<button
+									onClick={() => handleInject(p.playerId, suggestion.event)}
+									className="ml-auto px-3 py-1 rounded cursor-pointer font-bold"
+									style={{
+										background: "var(--color-growth)",
+										color: "#fff",
+										border: "none",
+										fontSize: "10px",
+										fontFamily: "var(--font-mono)",
+									}}
+								>
+									⚡ Inject
+								</button>
+							</div>
+						)}
 						<div
 							className="text-[10px] mb-2 font-bold"
 							style={{ color: "var(--color-text-muted)" }}

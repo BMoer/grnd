@@ -115,6 +115,8 @@ export async function sendTelemetry(gameState, classId, classConfig) {
 		certProgress: s.certProgress ?? null,
 		lois: s.lois ?? null,
 		burnRate: s.burnRate ?? s.totalBurn ?? 0,
+		product: s.product ?? 0,
+		pipeline: s.pipeline ?? 0,
 		screen: "game", // Telemetry only sent during game
 	};
 
