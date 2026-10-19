@@ -218,7 +218,10 @@ export default function EndScreen() {
 						border: "1px solid var(--color-border)",
 					}}
 				>
-					<ForecastChart metric="totalMRR" label="MRR: Your Plan vs. Reality" />
+					<ForecastChart
+						metric="totalMRR"
+						label={`${classConfig?.id === "saas" ? "MRR" : "Revenue"}: Your Plan vs. Reality`}
+					/>
 				</div>
 
 				{/* Reflection Questions */}

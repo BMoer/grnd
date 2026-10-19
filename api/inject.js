@@ -7,6 +7,13 @@
 
 import { kv } from "@vercel/kv";
 
+// No fallback key: the repo is public, so a default would be a known key.
+// Without ADMIN_KEY set, admin endpoints are closed.
+function isAdmin(key) {
+	const expected = process.env.ADMIN_KEY;
+	return Boolean(expected) && key === expected;
+}
+
 export default async function handler(req, res) {
 	res.setHeader("Access-Control-Allow-Origin", "*");
 	res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
@@ -17,7 +24,7 @@ export default async function handler(req, res) {
 		if (req.method === "POST") {
 			// Admin injects event
 			const adminKey = req.headers["x-admin-key"];
-			if (adminKey !== (process.env.ADMIN_KEY || "grnd2025")) {
+			if (!isAdmin(adminKey)) {
 				return res.status(401).json({ error: "unauthorized" });
 			}
 

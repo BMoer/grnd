@@ -11,38 +11,84 @@ export function isBoardMeetingMonth(month) {
   return month > 0 && month % 3 === 0;
 }
 
+// Metrics shown in the board meeting, per class. `inverted` = lower is
+// better. Keys must exist in both the class forecast and the engine state.
+const M = (key, label, format, extra = {}) => ({ key, label, format, ...extra });
+export const BOARD_METRICS = {
+  saas: [
+    M('totalMRR', 'MRR', '€'),
+    M('customers', 'Customers', ''),
+    M('cac', 'CAC', '€', { inverted: true }),
+    M('churn', 'Churn', '%', { inverted: true, decimals: 1 }),
+    M('ltvCacRatio', 'LTV:CAC', 'x'),
+    M('cash', 'Cash', '€'),
+    M('burnRate', 'Burn Rate', '€', { inverted: true }),
+    M('pipeline', 'Pipeline', ''),
+  ],
+  consumer: [
+    M('totalMRR', 'Revenue/mo', '€'),
+    M('activeCustomers', 'Active customers', ''),
+    M('totalOrders', 'Orders/mo', ''),
+    M('cac', 'CAC', '€', { inverted: true }),
+    M('repeatRate', 'Repeat rate', '%', { decimals: 1 }),
+    M('ltvCacRatio', 'LTV:CAC', 'x'),
+    M('cash', 'Cash', '€'),
+  ],
+  deeptech: [
+    M('certProgress', 'Certification', '%'),
+    M('lois', 'Open LOIs', ''),
+    M('unitsSold', 'Units sold', ''),
+    M('product', 'Product / TRL score', ''),
+    M('grantRemaining', 'Grant left', '€'),
+    M('cash', 'Cash', '€'),
+  ],
+  marketplace: [
+    M('totalMRR', 'Net revenue/mo', '€'),
+    M('transactions', 'Transactions/mo', ''),
+    M('supply', 'Supply (providers)', ''),
+    M('demand', 'Demand (buyers)', ''),
+    M('liquidity', 'Liquidity', '%'),
+    M('churn', 'Avg churn', '%', { inverted: true, decimals: 1 }),
+    M('cash', 'Cash', '€'),
+  ],
+  service: [
+    M('totalMRR', 'Revenue/mo', '€'),
+    M('activeClients', 'Active clients', ''),
+    M('utilization', 'Utilization', '%'),
+    M('grossMargin', 'Gross margin', '%'),
+    M('pipeline', 'Pipeline', ''),
+    M('cash', 'Cash', '€'),
+  ],
+};
+
+// Which metric carries the "retention" signal for each class (null = none)
+export const RETENTION_KEY = {
+  saas: 'churn', consumer: 'repeatRate', deeptech: null, marketplace: 'churn', service: null,
+};
+
+export function getBoardMetrics(classId) {
+  return BOARD_METRICS[classId] ?? BOARD_METRICS.saas;
+}
+
 /**
  * Calculate deltas between forecast and actual for a given month.
  */
-export function calculateDeltas(forecast, actual, month) {
+export function calculateDeltas(forecast, actual, month, classId = 'saas') {
   if (!forecast[month] || !actual) return [];
 
   const f = forecast[month];
   const a = actual;
 
-  const metrics = [
-    { key: 'totalMRR', label: 'MRR', format: '€' },
-    { key: 'customers', label: 'Customers', format: '' },
-    { key: 'cac', label: 'CAC', format: '€' },
-    { key: 'churn', label: 'Churn', format: '%', decimals: 1 },
-    { key: 'ltvCacRatio', label: 'LTV:CAC', format: 'x' },
-    { key: 'cash', label: 'Cash', format: '€' },
-    { key: 'burnRate', label: 'Burn Rate', format: '€' },
-    { key: 'pipeline', label: 'Pipeline', format: '' },
-  ];
-
-  return metrics.map(m => {
-    const fVal = f[m.key] ?? 0;
-    const aVal = a[m.key] ?? 0;
+  return getBoardMetrics(classId).map(m => {
+    const round = (v) => (m.decimals ? Math.round(v * 10 ** m.decimals) / 10 ** m.decimals : Math.round(v));
+    const fVal = round(f[m.key] ?? 0);
+    const aVal = round(a[m.key] ?? 0);
     const delta = aVal - fVal;
     const deltaPct = fVal !== 0 ? Math.round((delta / Math.abs(fVal)) * 100) : 0;
 
-    const invertedMetrics = ['churn', 'cac', 'burnRate'];
-    const isInverted = invertedMetrics.includes(m.key);
-
     let status = 'neutral';
     if (Math.abs(deltaPct) > 20) {
-      if (isInverted) {
+      if (m.inverted) {
         status = delta < 0 ? 'above' : 'below';
       } else {
         status = delta > 0 ? 'above' : 'below';
@@ -75,17 +121,20 @@ export function getBoardPhase(month, hasFundraised) {
  * Generate board feedback based on deltas and phase.
  * Returns array of { speaker, text, tone }
  */
-export function generateBoardFeedback(deltas, phase, month, state = {}) {
+export function generateBoardFeedback(deltas, phase, month, state = {}, classConfig = null) {
   const feedback = [];
+  // Speakers are this class's own founders (was hard-coded to the SaaS pair)
+  const shortName = (f) => (f?.name ?? '').replace(/^Dr\.\s*/, '').split(' ')[0];
+  const OPTIMIST = shortName(classConfig?.founders?.[0]) || 'Mira';
+  const SKEPTIC = shortName(classConfig?.founders?.[1]) || 'Jonas';
+  const retentionKey = RETENTION_KEY[classConfig?.id ?? 'saas'];
   const quarter = Math.ceil(month / 3);
   const fm = state.founderMods || {};
   const investorTone = fm.investorTone ?? 'neutral';
 
   const misses = deltas.filter(d => d.status === 'below');
   const wins = deltas.filter(d => d.status === 'above');
-  const mrrDelta = deltas.find(d => d.key === 'totalMRR');
-  const cashDelta = deltas.find(d => d.key === 'cash');
-  const churnDelta = deltas.find(d => d.key === 'churn');
+  const churnDelta = retentionKey ? deltas.find(d => d.key === retentionKey) : null;
   const runway = state.runway ?? 99;
   const pmf = state.pmf ?? 0;
 
@@ -98,27 +147,27 @@ export function generateBoardFeedback(deltas, phase, month, state = {}) {
         `Numbers are up. ${wins[0].label} surprised us. Time to ask: was this the plan working, or a one-off?`,
       ];
       feedback.push({
-        speaker: 'Mira',
+        speaker: OPTIMIST,
         text: templates[quarter % templates.length],
         tone: 'positive',
       });
     } else if (misses.length >= 2) {
       feedback.push({
-        speaker: 'Jonas',
+        speaker: SKEPTIC,
         text: `${misses[0].label} and ${misses[1].label} both missed. ${misses[0].label} by ${Math.abs(misses[0].deltaPct)}%, ${misses[1].label} by ${Math.abs(misses[1].deltaPct)}%. We need to figure out if this is execution or if the assumptions were wrong.`,
         tone: 'critical',
       });
       if (churnDelta?.status === 'below') {
         feedback.push({
-          speaker: 'Mira',
-          text: `Churn is the canary. If people are leaving, no amount of pipeline fixes the math. We need to talk to the people who left.`,
+          speaker: OPTIMIST,
+          text: `${churnDelta.label} is the canary. If people are leaving, no amount of new customers fixes the math. We need to talk to the people who left.`,
           tone: 'critical',
         });
       }
     } else if (misses.length === 1) {
       const worst = misses[0];
       feedback.push({
-        speaker: 'Jonas',
+        speaker: SKEPTIC,
         text: `${worst.label} is ${Math.abs(worst.deltaPct)}% off forecast. ${getMetricAdvice(worst.key)} One miss is fine. A pattern isn't.`,
         tone: 'warning',
       });
@@ -128,7 +177,7 @@ export function generateBoardFeedback(deltas, phase, month, state = {}) {
         `Tracking forecast. Not exciting, not scary. The boring middle is where most startups live — and where discipline matters most.`,
       ];
       feedback.push({
-        speaker: 'Mira',
+        speaker: OPTIMIST,
         text: templates[quarter % templates.length],
         tone: 'neutral',
       });
@@ -137,13 +186,13 @@ export function generateBoardFeedback(deltas, phase, month, state = {}) {
     // Add runway commentary if it's getting tight
     if (runway < 6) {
       feedback.push({
-        speaker: 'Jonas',
+        speaker: SKEPTIC,
         text: `${runway} months of runway. We need to have the hard conversation about either cutting costs or raising money. This isn't abstract anymore.`,
         tone: 'critical',
       });
     } else if (runway < 10) {
       feedback.push({
-        speaker: 'Mira',
+        speaker: OPTIMIST,
         text: `${runway} months of runway. Not urgent, but the clock is ticking. Every month without revenue growth shortens this number.`,
         tone: 'warning',
       });
@@ -160,7 +209,7 @@ export function generateBoardFeedback(deltas, phase, month, state = {}) {
         tone: 'critical',
       });
       feedback.push({
-        speaker: 'Mira',
+        speaker: OPTIMIST,
         text: `Fair question. We need to prioritize. Fixing everything means fixing nothing.`,
         tone: 'neutral',
       });
@@ -180,7 +229,7 @@ export function generateBoardFeedback(deltas, phase, month, state = {}) {
         // Prevention framing: focus on risks even when things are good (Kanze et al.)
         feedback.push({
           speaker: 'Investor',
-          text: `Numbers look good. But what happens if churn spikes next quarter? What's your downside protection? I need to understand the risks before I get excited.`,
+          text: `Numbers look good. But what happens if customers start leaving next quarter? What's your downside protection? I need to understand the risks before I get excited.`,
           tone: 'warning',
         });
       } else {
@@ -220,7 +269,7 @@ export function generateBoardFeedback(deltas, phase, month, state = {}) {
   // Always add at least one piece of feedback
   if (feedback.length === 0) {
     feedback.push({
-      speaker: phase === 'pre-funding' ? 'Jonas' : 'Investor',
+      speaker: phase === 'pre-funding' ? SKEPTIC : 'Investor',
       text: `Quarter ${quarter} is in the books. Let's see what the next three months bring.`,
       tone: 'neutral',
     });
@@ -239,6 +288,21 @@ function getMetricAdvice(key) {
     cash: 'Burn is outpacing plan. Cut or accelerate.',
     burnRate: 'Spending above forecast. Intentional or scope creep?',
     pipeline: 'Not enough leads. Marketing channel or market size issue.',
+    activeCustomers: 'Fewer active buyers than planned. Acquisition or reorders?',
+    totalOrders: 'Order volume is behind. New buyers or repeat orders — which one?',
+    repeatRate: 'People are not reordering. The product or the experience is not sticky yet.',
+    certProgress: 'Certification is behind plan. Every month here costs grant money.',
+    lois: 'Not enough buyers committed. Who is actually talking to customers?',
+    unitsSold: 'No orders yet. Certification, price, or missing buyer commitment?',
+    product: 'The prototype is behind. Lab time or customer time — what is the trade-off?',
+    grantRemaining: 'The grant is draining faster than planned. What happens when it is gone?',
+    transactions: 'Too few matches. Is it supply depth or demand?',
+    supply: 'Not enough providers. Buyers will not find a match.',
+    demand: 'Not enough buyers. Providers will sit idle and leave.',
+    liquidity: 'Requests go unanswered. Liquidity before growth.',
+    activeClients: 'Fewer clients than planned. Pipeline or close rate?',
+    utilization: 'Utilization is off plan. Too low burns margin, too high burns people.',
+    grossMargin: 'Margin is below plan. Pricing or delivery hours?',
   };
   return advice[key] || 'Revisit the assumption behind this number.';
 }
@@ -253,6 +317,14 @@ function getInvestorAdvice(key) {
     cash: 'Cash position is concerning. Let\'s talk about the path to sustainability.',
     burnRate: 'Burn rate above plan needs a clear justification. What did the extra spend buy?',
     pipeline: 'Pipeline is the leading indicator. When pipeline drops, revenue drops 2 quarters later.',
+    repeatRate: 'Repeat purchases are what make D2C unit economics work. Show me the cohort.',
+    certProgress: 'Certification timing drives everything else. What is the realistic date?',
+    lois: 'LOIs are your proof of demand. I need names of buyers.',
+    grantRemaining: 'What is the funding plan after the grant runs out?',
+    liquidity: 'Liquidity is the marketplace. Without it, growth spend is wasted.',
+    transactions: 'Transactions are the real usage signal. What is blocking them?',
+    utilization: 'Utilization tells me if this scales or burns out. Where is the product leverage?',
+    grossMargin: 'Service margins decide whether this is a company or a job.',
   };
   return advice[key] || 'Help me understand this number.';
 }

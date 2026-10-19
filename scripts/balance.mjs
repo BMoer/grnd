@@ -215,7 +215,7 @@ export function simulateGame(classId, policyName, trace = null) {
 		if (end) return summarize(end, state, maxPmf);
 
 		if (isBoardMeetingMonth(state.month)) {
-			const deltas = calculateDeltas(forecast, state, state.month);
+			const deltas = calculateDeltas(forecast, state, state.month, classId);
 			state = applyBoardOutcome({ deltas }, state, config).state;
 			state = BOARD_POLICIES[policyName](ctx, state);
 		}

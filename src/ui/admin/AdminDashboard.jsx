@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
 // ADMIN DASHBOARD — Workshop live monitoring + event injection
-// Route: /admin?key=grnd2025
+// Route: /admin?key=<ADMIN_KEY> (set in Vercel env, not in the repo)
 // ═══════════════════════════════════════════════════════════════
 
 import { useCallback, useEffect, useState } from "react";

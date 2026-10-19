@@ -189,6 +189,7 @@ export function applyBoardOutcome(boardData, state, classConfig) {
 	const misses = boardData.deltas.filter((d) => d.status === "below");
 	const wins = boardData.deltas.filter((d) => d.status === "above");
 	const mrrDelta = boardData.deltas.find((d) => d.key === "totalMRR");
+	// Retention alert only where churn is a board metric (SaaS, marketplace)
 	const churnDelta = boardData.deltas.find((d) => d.key === "churn");
 	const initialBurn = classConfig?.initial?.burnRate ?? 4500;
 	const next = { ...state };

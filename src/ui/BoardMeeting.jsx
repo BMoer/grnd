@@ -108,7 +108,14 @@ export default function BoardMeeting() {
 						border: "1px solid var(--color-border)",
 					}}
 				>
-					<ForecastChart metric="totalMRR" label="Monthly Recurring Revenue" />
+					<ForecastChart
+						metric="totalMRR"
+						label={
+							classConfig?.id === "saas"
+								? "Monthly Recurring Revenue"
+								: "Monthly Revenue"
+						}
+					/>
 				</div>
 
 				{/* Cash Chart */}

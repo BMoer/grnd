@@ -351,13 +351,19 @@ export const useGameStore = create((set, get) => ({
 
 		// Check board meeting — show popup interstitial first (stay on game screen)
 		if (isBoardMeetingMonth(monthly.month)) {
-			const deltas = calculateDeltas(forecast, monthly, monthly.month);
+			const deltas = calculateDeltas(
+				forecast,
+				monthly,
+				monthly.month,
+				get().classId,
+			);
 			const phase = getBoardPhase(monthly.month, false);
 			const feedback = generateBoardFeedback(
 				deltas,
 				phase,
 				monthly.month,
 				monthly,
+				classConfig,
 			);
 			const quarter = Math.ceil(monthly.month / 3);
 			const insightCard = getInsightCard(
@@ -563,9 +569,20 @@ export const useGameStore = create((set, get) => ({
 
 		// Check board meeting — show popup interstitial first (stay on game screen)
 		if (isBoardMeetingMonth(state.month)) {
-			const deltas = calculateDeltas(forecast, state, state.month);
+			const deltas = calculateDeltas(
+				forecast,
+				state,
+				state.month,
+				get().classId,
+			);
 			const phase = getBoardPhase(state.month, false);
-			const feedback = generateBoardFeedback(deltas, phase, state.month, state);
+			const feedback = generateBoardFeedback(
+				deltas,
+				phase,
+				state.month,
+				state,
+				get().classConfig,
+			);
 			const dQuarter = Math.ceil(state.month / 3);
 			const dInsightCard = getInsightCard(
 				state,
