@@ -11,7 +11,7 @@ export const deeptech = {
   tagline: 'Molecular sensors for food safety. Long road, deep moat.',
   color: '#2D5DA1',
 
-  backstory: `A materials science PhD and a food safety engineer developed a sensor that detects pathogens in food 10x faster than lab tests. The science works in the lab. Now they need to get it from lab bench to production line, through EU certification, and into the hands of food manufacturers who move at glacial speed. They have an FFG grant for €300K over 2 years and zero revenue.`,
+  backstory: `A materials science PhD and a food safety engineer developed a sensor that detects pathogens in food 10x faster than lab tests. The science works in the lab. Now they need to get it from lab bench to production line, through EU certification, and into the hands of food manufacturers who move at glacial speed. They have an FFG grant for €300K that pays costs as they occur, €120K of their own and pre-seed money for everything after, and zero revenue.`,
 
   founders: [
     { name: 'Dr. Sarah Lindström', role: 'Materials Science', background: 'TU Wien' },
@@ -73,7 +73,7 @@ export const deeptech = {
 
   initial: {
     month: 0,
-    cash: 300000, // FFG grant
+    cash: 120000, // founders + pre-seed; the €300K FFG grant is tracked separately below
     grantTotal: 300000,
     grantRemaining: 300000,
     burnRate: 15000,
@@ -108,6 +108,7 @@ export const deeptech = {
     salesEffort: 0,
     supportCost: 0,
     rdBurn: 15000,
+    customerFocus: 10, // % founder time with customers (board lever)
   },
 
   tableHeaders: ['Month', 'Cash', 'Grant Left', 'Cert %', 'LOIs', 'Units Sold', 'Revenue', 'R&D Burn', 'Runway'],

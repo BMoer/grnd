@@ -6,6 +6,8 @@
 
 import { applyVariance } from './varianceEngine.js';
 
+const UNITS_PER_ORDER = 5; // a first industrial order = a small sensor fleet
+
 export function advanceDeepTechMonth(state, classConfig) {
   const month = state.month + 1;
   const corridors = classConfig.corridors || {};
@@ -52,6 +54,11 @@ export function advanceDeepTechMonth(state, classConfig) {
   let pilotConversations = s.pilotConversations ?? 0;
   const corridorPipeline = corridors.pilotPipeline || { center: 3 };
 
+  // Founder time with customers (board lever, 0–60%). Pure lab mode keeps
+  // the pipeline nearly empty; customer time costs R&D speed below.
+  const customerFocus = Math.max(0, Math.min(60, s.customerFocus ?? 10));
+  const focusMult = 0.3 + customerFocus / 20; // 0% → 0.3, 10% → 0.8, 30% → 1.8
+
   // Pipeline: drift toward corridor, product quality helps
   let pipeline = s.pipeline ?? 3;
   pipeline = pipeline * 0.8 + corridorPipeline.center * 0.2;
@@ -60,11 +67,12 @@ export function advanceDeepTechMonth(state, classConfig) {
   pipeline = Math.max(1, Math.min(10, Math.round(pipeline)));
 
   // New conversations each month (slow in deep-tech)
-  const newConversations = month <= 3 ? 0 : Math.max(0, applyVariance(Math.round(pipeline * 0.3), 0.3));
+  const newConversations = month <= 3 ? 0 : Math.max(0, applyVariance(Math.round(pipeline * 0.3 * focusMult), 0.3));
   pilotConversations += newConversations;
 
   // LOI conversion: very slow in deep-tech. Companies need internal approvals.
-  const loiConversion = certProgress > 70 ? 0.10 : certProgress > 40 ? 0.05 : 0.02;
+  // A shaky prototype (low TRL) halves conversion — demos fail.
+  const loiConversion = (certProgress > 70 ? 0.10 : certProgress > 40 ? 0.05 : 0.02) * (product < 30 ? 0.5 : 1);
   const newLOIs = Math.max(0, Math.round(pilotConversations * loiConversion * (Math.random() > 0.5 ? 1 : 0)));
   lois += newLOIs;
   // Consumed conversations don't generate more LOIs
@@ -76,23 +84,32 @@ export function advanceDeepTechMonth(state, classConfig) {
   let revenue = 0;
   const unitPrice = s.unitPrice ?? 2000;
   const unitCost = s.unitCost ?? 500;
+  let unitsThisMonth = 0;
 
   if (certComplete && lois > 0) {
-    // Convert LOIs to sales (slow: 1-2 per month max, not all convert)
-    const conversions = Math.min(lois, Math.max(0, applyVariance(1, 0.5)));
+    // Each LOI converts with some probability into a first order of
+    // UNITS_PER_ORDER sensors. Higher prices need a stronger ROI case.
+    const priceFactor = Math.min(1.2, Math.sqrt(2000 / Math.max(500, unitPrice)));
+    let conversions = 0;
+    for (let i = 0; i < lois; i++) if (Math.random() < 0.35 * priceFactor) conversions++;
     if (conversions > 0) {
-      unitsSold += conversions;
+      unitsThisMonth = conversions * UNITS_PER_ORDER;
+      unitsSold += unitsThisMonth;
       customers += conversions;
       lois = Math.max(0, lois - conversions);
-      revenue = conversions * unitPrice;
+      revenue = unitsThisMonth * unitPrice;
     }
   }
 
   // ─── Costs ───
-  const rdBurn = s.rdBurn ?? 15000;
-  const corridorRD = corridors.rdBurn || { center: 16000 };
-  // R&D burn drifts toward corridor center
-  const actualRDBurn = Math.round(rdBurn * 0.85 + corridorRD.center * 0.15);
+  // R&D budget is the founders' decision (board lever). Events that change
+  // burnRate (hires, cuts) are carried over into the R&D budget — before,
+  // the engine silently overwrote them.
+  // (Skipped when the event already moved rdBurn itself, to avoid counting twice.)
+  const lastBurn = s.prevBurnRate ?? s.rdBurn ?? 15000;
+  const rdMovedDirectly = (s.rdBurn ?? lastBurn) !== lastBurn;
+  const eventBurnDelta = rdMovedDirectly ? 0 : (s.burnRate ?? lastBurn) - lastBurn;
+  const actualRDBurn = Math.max(6000, Math.round((s.rdBurn ?? 15000) + eventBurnDelta));
   const teamCost = 3000; // base team cost beyond R&D
   const labEquipment = Math.round(month * 400); // equipment + lab rental costs creep
   const totalBurn = actualRDBurn + teamCost + labEquipment;
@@ -103,7 +120,8 @@ export function advanceDeepTechMonth(state, classConfig) {
   grantRemaining = Math.max(0, grantRemaining - grantDrawdown);
   const outOfPocket = totalBurn - grantDrawdown; // costs not covered by grant
 
-  const cash = Math.round((s.cash ?? 300000) - outOfPocket + revenue);
+  const cogs = unitsThisMonth * unitCost;
+  const cash = Math.round((s.cash ?? 120000) - outOfPocket - cogs + revenue);
   const netBurn = Math.max(0, outOfPocket - revenue);
   const runway = netBurn > 0 ? Math.floor(Math.max(0, cash) / netBurn) : grantRemaining > 0 ? Math.floor(grantRemaining / totalBurn) + Math.floor(cash / totalBurn) : 99;
 
@@ -111,7 +129,8 @@ export function advanceDeepTechMonth(state, classConfig) {
   let productQuality = Math.min(85, product);
   // TRL advances with R&D spend (each €15K/mo = baseline progress)
   const rdEfficiency = actualRDBurn / 15000;
-  productQuality = Math.min(85, productQuality + rdEfficiency * 1.5);
+  // Founder time with customers is time not spent in the lab
+  productQuality = Math.min(85, productQuality + rdEfficiency * 1.5 * (1 - customerFocus / 100 * 0.7));
   // Natural decay is slower for deep-tech (science doesn't rot as fast)
   if (month > 4) productQuality = Math.max(10, productQuality - 0.3);
 
@@ -122,7 +141,7 @@ export function advanceDeepTechMonth(state, classConfig) {
   else if (productQuality > 35) prototypeStage = 5; // validated in relevant environment
 
   // Unit economics
-  const grossMargin = revenue > 0 ? Math.round((revenue - unitsSold * unitCost) / revenue * 100) : 0;
+  const grossMargin = revenue > 0 ? Math.round((revenue - cogs) / revenue * 100) : 0;
   // LTV for deep-tech: unit price (one-time) + potential service revenue
   const ltv = unitPrice;
   // CAC for deep-tech: total cost to acquire one customer (very high early)
@@ -131,10 +150,9 @@ export function advanceDeepTechMonth(state, classConfig) {
   const ltvCacRatio = cac > 0 ? Math.round(ltv / cac * 10) / 10 : 0;
   // Churn equivalent: deep-tech doesn't have traditional churn
   const churn = 0;
-  const totalMRR = revenue; // for compatibility
 
   // ─── Team budget effects ───
-  const prevBurn = s.prevBurnRate ?? rdBurn;
+  const prevBurn = s.prevBurnRate ?? actualRDBurn;
   const burnDelta = actualRDBurn - prevBurn;
   let teamMorale = s.teamMorale ?? 1.0;
   if (burnDelta < -2000) teamMorale = Math.max(0.3, teamMorale - 0.2);
@@ -163,6 +181,8 @@ export function advanceDeepTechMonth(state, classConfig) {
     customers,
     activeCustomers: customers,
     unitsSold,
+    unitsThisMonth,
+    customerFocus,
     unitCost,
     unitPrice,
     revenue,
@@ -198,17 +218,19 @@ export function advanceDeepTechMonth(state, classConfig) {
 export function generateDeepTechForecast(assumptions) {
   const { unitCost = 500, unitPrice = 2000, certTimeline = 12, pilotPipeline = 3, rdBurn = 15000, grantRunway = 20 } = assumptions;
   const months = [];
-  let cash = 300000, grantRem = 300000, cert = 0, lois = 0, product = 20, sold = 0;
+  let cash = 120000, grantRem = 300000, cert = 0, loiAcc = 0, product = 20, sold = 0;
 
   for (let m = 0; m <= 24; m++) {
     if (m === 0) {
-      months.push({ month: 0, cash: 300000, grantRemaining: 300000, certProgress: 0, lois: 0, unitsSold: 0, revenue: 0, totalMRR: 0, burnRate: rdBurn, runway: grantRunway, product: 20, customers: 0, churn: 0, ltvCacRatio: 0, cac: 0, totalBurn: rdBurn + 3000 });
+      months.push({ month: 0, cash: 120000, grantRemaining: 300000, certProgress: 0, lois: 0, unitsSold: 0, revenue: 0, totalMRR: 0, burnRate: rdBurn, runway: grantRunway, product: 20, customers: 0, churn: 0, ltvCacRatio: 0, cac: 0, totalBurn: rdBurn + 3000 });
       continue;
     }
     const progress = 100 / certTimeline;
     cert = Math.min(100, cert + progress);
     product = Math.min(85, product + 1.5);
-    if (m > 3) lois += Math.round(pilotPipeline * 0.1);
+    // Fractional accumulation (rounding each month kept the plan at 0 LOIs)
+    if (m > 3) loiAcc += pilotPipeline * 0.1;
+    let lois = Math.floor(loiAcc);
 
     const totalBurn = rdBurn + 3000 + m * 200;
     const draw = Math.min(grantRem, totalBurn);
@@ -216,8 +238,12 @@ export function generateDeepTechForecast(assumptions) {
     const oopCost = totalBurn - draw;
 
     let rev = 0;
-    if (cert >= 100 && lois > 0) { sold++; lois--; rev = unitPrice; }
-    cash = Math.round(cash - oopCost + rev);
+    let cogs = 0;
+    if (cert >= 100 && lois > 0) {
+      sold += UNITS_PER_ORDER; loiAcc -= 1; lois -= 1;
+      rev = UNITS_PER_ORDER * unitPrice; cogs = UNITS_PER_ORDER * unitCost;
+    }
+    cash = Math.round(cash - oopCost - cogs + rev);
     const netBurn = Math.max(0, oopCost - rev);
     const runway = netBurn > 0 ? Math.floor(Math.max(0, cash) / netBurn) : grantRem > 0 ? Math.floor(grantRem / totalBurn) + Math.floor(cash / totalBurn) : 99;
 
@@ -225,7 +251,7 @@ export function generateDeepTechForecast(assumptions) {
       month: m, cash, grantRemaining: grantRem, certProgress: Math.round(cert),
       lois, unitsSold: sold, revenue: rev, totalMRR: rev, burnRate: rdBurn,
       totalBurn, runway: Math.min(runway, 99), product: Math.round(product),
-      customers: sold, churn: 0, ltvCacRatio: 0, cac: 0,
+      customers: Math.round(sold / UNITS_PER_ORDER), churn: 0, ltvCacRatio: 0, cac: 0,
     });
   }
   return months;
@@ -245,7 +271,7 @@ export function calculateDeepTechPMF(state) {
   // Sales weight is high — you can't reach PMF without commercial traction
   const certScore = Math.min(25, Math.round(certProgress / 100 * 25));
   const loiScore = Math.min(20, Math.round(Math.min(lois, 5) / 5 * 20));
-  const salesScore = Math.min(25, Math.round(Math.min(unitsSold, 5) / 5 * 25)); // 5 units sold = max
+  const salesScore = Math.min(25, Math.round(Math.min(unitsSold, 15) / 15 * 25)); // 3 orders (15 units) = max
   const productScore = Math.min(15, Math.round(Math.max(0, product - 20) / 55 * 15));
   const ipScore = Math.min(15, Math.round(Math.min(ipFilings, 2) / 2 * 15));
 

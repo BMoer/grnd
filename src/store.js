@@ -15,45 +15,6 @@
 
 import { create } from "zustand";
 import { getClass } from "./classes/index.js";
-import { DECISION_EVENTS } from "./events/decisions.js";
-
-// Class-aware dispatchers
-function getAdvanceMonth(classId) {
-	if (classId === "consumer") return advanceConsumerMonth;
-	if (classId === "deeptech") return advanceDeepTechMonth;
-	if (classId === "marketplace") return advanceMarketplaceMonth;
-	if (classId === "service") return advanceServiceMonth;
-	return engineAdvance;
-}
-function getGenerateForecast(classId) {
-	if (classId === "consumer") return generateConsumerForecast;
-	if (classId === "deeptech") return generateDeepTechForecast;
-	if (classId === "marketplace") return generateMarketplaceForecast;
-	if (classId === "service") return generateServiceForecast;
-	return generateSaaSForecast;
-}
-function getCalculatePMF(classId) {
-	if (classId === "consumer") return calculateConsumerPMF;
-	if (classId === "deeptech") return calculateDeepTechPMF;
-	if (classId === "marketplace") return calculateMarketplacePMF;
-	if (classId === "service") return calculateServicePMF;
-	return calculateSaaSPMF;
-}
-function getAllEvents(classId) {
-	const shared = (minMonth) =>
-		DECISION_EVENTS.filter(
-			(e) => !e.saasOnly && e.months.some((m) => m > minMonth),
-		);
-	if (classId === "consumer")
-		return [...CONSUMER_EVENTS, ...shared(8)];
-	if (classId === "deeptech")
-		return [...DEEPTECH_EVENTS, ...shared(12)];
-	if (classId === "marketplace")
-		return [...MARKETPLACE_EVENTS, ...shared(10)];
-	if (classId === "service")
-		return [...SERVICE_EVENTS, ...shared(8)];
-	return DECISION_EVENTS;
-}
 
 import { getInsightCard } from "./data/insightCards.js";
 import {
@@ -63,34 +24,19 @@ import {
 	isBoardMeetingMonth,
 } from "./engine/boardMeeting.js";
 import {
-	advanceConsumerMonth,
-	calculateConsumerPMF,
-	generateConsumerForecast,
-} from "./engine/consumerEngine.js";
-import {
-	advanceDeepTechMonth,
-	calculateDeepTechPMF,
-	generateDeepTechForecast,
-} from "./engine/deeptechEngine.js";
-import { generateSaaSForecast } from "./engine/forecastEngine.js";
-import {
-	checkEndCondition,
-	advanceMonth as engineAdvance,
-	getAvailableEvents,
-	pickRandom,
-} from "./engine/gameEngine.js";
+	applyBoardOutcome,
+	applyMonthlyPressure,
+	buildInitialState,
+	drawMonthEvents,
+	effectiveAP,
+	getCalculatePMF,
+	getGenerateForecast,
+	getAdvanceMonth,
+	WORLD_EVENT_CHANCE,
+	WORLD_EVENT_FROM_MONTH,
+} from "./engine/gameRules.js";
+import { checkEndCondition, pickRandom } from "./engine/gameEngine.js";
 import { getHint } from "./engine/hintEngine.js";
-import {
-	advanceMarketplaceMonth,
-	calculateMarketplacePMF,
-	generateMarketplaceForecast,
-} from "./engine/marketplaceEngine.js";
-import { calculateSaaSPMF } from "./engine/pmfCalculator.js";
-import {
-	advanceServiceMonth,
-	calculateServicePMF,
-	generateServiceForecast,
-} from "./engine/serviceEngine.js";
 import {
 	clearGameState,
 	consumeInjectedEvent,
@@ -101,10 +47,6 @@ import {
 	sendTelemetry,
 } from "./engine/telemetry.js";
 import { applyEffectsWithVariance } from "./engine/varianceEngine.js";
-import { CONSUMER_EVENTS } from "./events/consumerDecisions.js";
-import { DEEPTECH_EVENTS } from "./events/deeptechDecisions.js";
-import { MARKETPLACE_EVENTS } from "./events/marketplaceDecisions.js";
-import { SERVICE_EVENTS } from "./events/serviceDecisions.js";
 import { WORLD_EVENTS } from "./events/worldEvents.js";
 
 /**
@@ -142,30 +84,6 @@ function calculateStateDelta(before, after) {
 		});
 	}
 	return result;
-}
-
-/**
- * Draw 1-3 events for a month from the available pool.
- * Weighted: month 1-3 → 1-2 events, month 4+ → 2-3 events.
- */
-function drawMonthEvents(month, usedEventIds, classId) {
-	const available = getAvailableEvents(
-		getAllEvents(classId),
-		month,
-		usedEventIds,
-	);
-	if (available.length === 0) return [];
-
-	const maxDraw = month <= 3 ? 2 : 3;
-	const minDraw = month <= 2 ? 1 : 2;
-	const count = Math.min(
-		available.length,
-		minDraw + Math.floor(Math.random() * (maxDraw - minDraw + 1)),
-	);
-
-	// Shuffle and take
-	const shuffled = [...available].sort(() => Math.random() - 0.5);
-	return shuffled.slice(0, count);
 }
 
 export const useGameStore = create((set, get) => ({
@@ -246,30 +164,12 @@ export const useGameStore = create((set, get) => ({
 
 		const forecast = getGenerateForecast(classId)(assumptions);
 		const em = founderProfile?.engineModifiers ?? {};
-
-		// Apply founder modifiers to initial state
-		const startingCashDelta = em.startingCashDelta ?? 0;
-		const apMod = em.apModifier ?? 0;
-		const basePipeline =
-			assumptions.pipelineGrowth ?? classConfig.initial.pipeline ?? 12;
-
-		const initial = {
-			...classConfig.initial,
-			price: assumptions.price ?? classConfig.initial.price,
-			churn: assumptions.churnRate ?? classConfig.initial.churn ?? 5,
-			cac: assumptions.targetCAC ?? classConfig.initial.cac ?? 80,
-			conversionRate:
-				assumptions.conversionRate ?? classConfig.initial.conversionRate ?? 15,
-			supportCost:
-				assumptions.supportCost ?? classConfig.initial.supportCost ?? 5,
-			pipeline: basePipeline + (em.pipelineBonus ?? 0),
-			pipelineGrowth: basePipeline,
-			mrrPerCustomer: assumptions.price ?? classConfig.initial.price ?? 49,
-			cash: (classConfig.initial.cash ?? 100000) + startingCashDelta,
-			maxAP: Math.max(2, 3 + apMod),
-			// Store engine modifiers for ongoing use
-			founderMods: em,
-		};
+		const initial = buildInitialState(
+			classId,
+			classConfig,
+			assumptions,
+			founderProfile,
+		);
 
 		set({
 			state: initial,
@@ -343,21 +243,13 @@ export const useGameStore = create((set, get) => ({
 		const { classConfig, usedWorlds, forecast, maxAP } = get();
 
 		// Advance month + calculate financials
-		const monthly = getAdvanceMonth(get().classId)(prevState, classConfig);
-		monthly.pmf = getCalculatePMF(get().classId)(monthly);
+		const advanced = getAdvanceMonth(get().classId)(prevState, classConfig);
+		advanced.pmf = getCalculatePMF(get().classId)(advanced);
+		// Natural churn pressure while the product is weak
+		const monthly = applyMonthlyPressure(advanced);
 
-		// Natural churn pressure: churn drifts up slightly each month if product isn't improving
-		if (monthly.month > 3 && (monthly.product ?? 30) < 40) {
-			monthly.churn = Math.min(20, (monthly.churn ?? 5) + 0.5);
-		}
-
-		// Reset AP (maxAP can be modified by events like burnout)
-		let effectiveMaxAP = monthly.maxAP ?? maxAP;
-		// Part-time founders lose 1 AP for first N months
-		const fm = monthly.founderMods || {};
-		if (fm.partTime && monthly.month <= (fm.partTimeMonths ?? 6)) {
-			effectiveMaxAP = Math.max(1, effectiveMaxAP - 1);
-		}
+		// Reset AP (burnout lowers maxAP, part-time founders lose one)
+		const effectiveMaxAP = effectiveAP(monthly, maxAP);
 		const ap = effectiveMaxAP;
 
 		// ─── Telemetry: send state + poll for injected events ───
@@ -370,8 +262,11 @@ export const useGameStore = create((set, get) => ({
 			// Admin sent a targeted event — use it instead of random
 			worldEvent = injected;
 			await consumeInjectedEvent();
-		} else if (monthly.month >= 3 && Math.random() < 0.4) {
-			// Normal random world event (40% chance after month 2)
+		} else if (
+			monthly.month >= WORLD_EVENT_FROM_MONTH &&
+			Math.random() < WORLD_EVENT_CHANCE
+		) {
+			// Normal random world event
 			const availWorlds = WORLD_EVENTS.filter(
 				(w) => !usedWorlds.includes(w.id),
 			);
@@ -737,88 +632,14 @@ export const useGameStore = create((set, get) => ({
 	 * Close board meeting → apply outcome effects for next quarter → continue.
 	 */
 	closeBoardMeeting: () => {
-		const { boardData, state } = get();
+		const { boardData, state, classConfig } = get();
 
-		// Derive board effects from meeting outcome
-		const effects = [];
 		if (boardData) {
-			const misses = boardData.deltas.filter((d) => d.status === "below");
-			const wins = boardData.deltas.filter((d) => d.status === "above");
-			const mrrDelta = boardData.deltas.find((d) => d.key === "totalMRR");
-			const churnDelta = boardData.deltas.find((d) => d.key === "churn");
-
-			const mods = {};
-
-			if (wins.length >= 3) {
-				// Strong quarter → momentum bonus
-				effects.push({ label: "Momentum: +10% pipeline", positive: true });
-				mods.pipelineBonus = Math.round((state.pipeline ?? 12) * 0.1);
-			} else if (wins.length >= 2 && misses.length === 0) {
-				effects.push({ label: "Confidence: +5% conversion", positive: true });
-				mods.conversionBonus = 0.5;
-			}
-
-			if (misses.length >= 3) {
-				// Bad quarter → pressure
-				effects.push({
-					label: "Pressure: +€500 burn (oversight)",
-					positive: false,
-				});
-				mods.burnPenalty = 500;
-				effects.push({ label: "Scrutiny: -5% pipeline", positive: false });
-				mods.pipelinePenalty = Math.round((state.pipeline ?? 12) * 0.05);
-			} else if (misses.length >= 2) {
-				effects.push({
-					label: "Concern: +€200 burn (reporting)",
-					positive: false,
-				});
-				mods.burnPenalty = 200;
-			}
-
-			if (churnDelta?.status === "below") {
-				effects.push({
-					label: "Churn alert: +1% churn pressure",
-					positive: false,
-				});
-				mods.churnPressure = 1;
-			}
-
-			if (mrrDelta?.status === "above" && Math.abs(mrrDelta.deltaPct) > 30) {
-				effects.push({
-					label: "Revenue beat: -€300 burn efficiency",
-					positive: true,
-				});
-				mods.burnReduction = 300;
-			}
-
-			// Apply effects to state
-			const newState = { ...state };
-			if (mods.pipelineBonus)
-				newState.pipeline = (newState.pipeline ?? 12) + mods.pipelineBonus;
-			if (mods.conversionBonus)
-				newState.conversionRate = Math.min(
-					30,
-					(newState.conversionRate ?? 15) + mods.conversionBonus,
-				);
-			if (mods.burnPenalty)
-				newState.burnRate = (newState.burnRate ?? 8000) + mods.burnPenalty;
-			if (mods.pipelinePenalty)
-				newState.pipeline = Math.max(
-					2,
-					(newState.pipeline ?? 12) - mods.pipelinePenalty,
-				);
-			if (mods.churnPressure)
-				newState.churn = Math.min(
-					20,
-					(newState.churn ?? 5) + mods.churnPressure,
-				);
-			if (mods.burnReduction)
-				newState.burnRate = Math.max(
-					5000,
-					(newState.burnRate ?? 8000) - mods.burnReduction,
-				);
-			newState.boardEffects = effects.length > 0 ? effects : null;
-
+			const { state: newState, effects } = applyBoardOutcome(
+				boardData,
+				state,
+				classConfig,
+			);
 			set((s) => ({
 				state: newState,
 				boardData: null,

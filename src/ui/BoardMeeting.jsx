@@ -3,6 +3,7 @@ import { useGameStore } from "../store.js";
 import DeltaTable from "./components/DeltaTable.jsx";
 import ForecastChart from "./components/ForecastChart.jsx";
 import FounderAvatar, { SHORT_NAME_MAP } from "./components/FounderAvatar.jsx";
+import { applyLeverValues, getBoardLevers } from "../engine/boardLevers.js";
 
 export default function BoardMeeting() {
 	const {
@@ -13,6 +14,7 @@ export default function BoardMeeting() {
 		closeBoardMeeting,
 		reviseForecast,
 		currentInsightCard,
+		classId,
 	} = useGameStore();
 	const [showRevise, setShowRevise] = useState(false);
 	const [revised, setRevised] = useState(null);
@@ -22,9 +24,13 @@ export default function BoardMeeting() {
 	const accent = classConfig?.color ?? "var(--color-saas)";
 
 	const handleRevise = () => {
-		if (!revised) {
+		if (!revised && classId !== "saas") {
+			// Non-SaaS: start from the player's own setup assumptions
+			setRevised({ ...assumptions });
+		} else if (!revised) {
 			// Initialize with current actuals as new assumptions
 			setRevised({
+				...assumptions,
 				price: state.price ?? assumptions.price ?? 49,
 				churnRate: Math.round((state.churn ?? 5) * 10) / 10,
 				targetCAC: state.cac ?? assumptions.targetCAC ?? 80,
@@ -415,81 +421,39 @@ function QuarterEvents({ quarter }) {
 
 function StrategicAdjustments({ state, accent }) {
 	const adjustState = useGameStore((s) => s.adjustState);
-	const [price, setPrice] = useState(state.price ?? 49);
-	const [supportCost, setSupportCost] = useState(state.supportCost ?? 5);
-	const [burnTarget, setBurnTarget] = useState(state.burnRate ?? 4500);
-	const [pipelineInvest, setPipelineInvest] = useState(
-		state.pipelineGrowth ?? 12,
+	const classId = useGameStore((s) => s.classId);
+	const classConfig = useGameStore((s) => s.classConfig);
+	const levers = getBoardLevers(classId);
+	const [values, setValues] = useState(() =>
+		Object.fromEntries(levers.map((l) => [l.key, l.read(state)])),
 	);
 	const [applied, setApplied] = useState(false);
 
 	const handleApply = () => {
-		if (adjustState) {
-			adjustState({
-				price,
-				supportCost,
-				mrrPerCustomer: price,
-				burnRate: burnTarget,
-				pipelineGrowth: pipelineInvest,
-			});
-			setApplied(true);
+		if (!adjustState) return;
+		const next = applyLeverValues(classId, state, values);
+		const changes = {};
+		for (const [k, v] of Object.entries(next)) {
+			if (state[k] !== v) changes[k] = v;
 		}
+		adjustState(changes);
+		setApplied(true);
 	};
 
-	const hasChanges =
-		price !== (state.price ?? 49) ||
-		supportCost !== (state.supportCost ?? 5) ||
-		burnTarget !== (state.burnRate ?? 4500) ||
-		pipelineInvest !== (state.pipelineGrowth ?? 12);
+	const hasChanges = levers.some((l) => values[l.key] !== l.read(state));
 
-	const controls = [
-		{
-			label: "Price/mo",
-			value: price,
-			set: setPrice,
-			min: 19,
-			max: 299,
-			step: 5,
-			unit: "€",
-			current: state.price ?? 49,
-		},
-		{
-			label: "Team budget (burn)",
-			value: burnTarget,
-			set: setBurnTarget,
-			min: Math.round((state.burnRate ?? 4500) * 0.5),
-			max: 15000,
-			step: 500,
-			unit: "€",
-			current: state.burnRate ?? 4500,
-			note:
-				burnTarget < (state.burnRate ?? 4500)
-					? "Cuts → morale hit, slower delivery"
-					: burnTarget > (state.burnRate ?? 4500) * 1.3
-						? "Fast growth → onboarding overhead"
-						: "",
-		},
-		{
-			label: "Sales/marketing intensity",
-			value: pipelineInvest,
-			set: setPipelineInvest,
-			min: 5,
-			max: 50,
-			step: 1,
-			unit: "",
-			current: state.pipelineGrowth ?? 12,
-		},
-		{
-			label: "Support investment/customer",
-			value: supportCost,
-			set: setSupportCost,
-			min: 2,
-			max: 30,
-			step: 1,
-			unit: "€",
-			current: state.supportCost ?? 5,
-		},
-	];
+	const controls = levers.map((l) => ({
+		label: l.label,
+		value: values[l.key],
+		set: (v) => setValues((prev) => ({ ...prev, [l.key]: v })),
+		min: l.min(state, classConfig),
+		max: l.max(state, classConfig),
+		step: l.step,
+		unit: l.unit === "€" ? "€" : "",
+		suffix: l.unit === "€" ? "" : l.unit,
+		current: l.read(state),
+		note: l.note ? l.note(state, values[l.key]) : "",
+	}));
 
 	return (
 		<div>
@@ -512,13 +476,15 @@ function StrategicAdjustments({ state, accent }) {
 							>
 								{c.unit}
 								{c.value}
+								{c.suffix}
 								{c.value !== c.current && (
 									<span
 										className="text-[9px] ml-1"
 										style={{ color: "var(--color-text-muted)" }}
 									>
 										(was {c.unit}
-										{Math.round(c.current * 10) / 10})
+										{Math.round(c.current * 10) / 10}
+										{c.suffix})
 									</span>
 								)}
 							</span>
@@ -575,7 +541,7 @@ function StrategicAdjustments({ state, accent }) {
 						fontFamily: "var(--font-mono)",
 					}}
 				>
-					Changes applied. New pricing takes effect next month.
+					Changes applied. They take effect next month.
 				</div>
 			)}
 		</div>

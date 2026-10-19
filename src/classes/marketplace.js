@@ -11,7 +11,7 @@ export const marketplace = {
   tagline: 'Peer-to-peer skill exchange. Two sides, zero margin for error.',
   color: '#7B5EA7',
 
-  backstory: `A former teacher and a UX designer who believe professional skills should be tradeable like goods. Their platform lets freelancers exchange services directly — a designer trades branding work for a developer's app build, with an optional cash top-up for imbalances. Bootstrapped with €30K savings and an FFG grant. The prototype works, but neither side has critical mass.`,
+  backstory: `A former teacher and a UX designer who believe professional skills should be tradeable like goods. Their platform lets freelancers exchange services directly — a designer trades branding work for a developer's app build, with an optional cash top-up for imbalances. Bootstrapped with €30K savings and an FFG grant. The prototype works, but neither side has critical mass. Side projects pay the founders for six months; from month 7 both go full-time and burn rises to €3.5K.`,
 
   founders: [
     { name: 'Lena Kowalski', role: 'Operations', background: 'ex-Teacher' },
@@ -79,6 +79,10 @@ export const marketplace = {
     month: 0,
     cash: 100000, // €30K savings + €70K grants (FFG + aws)
     burnRate: 1200, // bootstrapped, side projects fund early months
+    adSpend: 1500, // marketing budget, split between supply and demand
+    supplySplit: 0.5,
+    // Founders live off side projects for six months, then go full-time
+    pendingEffects: [{ month: 7, changes: { burnRate: 2300 } }],
     revenue: 0,
     totalMRR: 0,
     supply: 15,

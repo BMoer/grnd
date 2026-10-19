@@ -6,6 +6,11 @@
 
 import { applyVariance } from './varianceEngine.js';
 
+const PRICE_ANCHOR = 5000; // €/client/month where the close-rate corridor is centred
+const FOUNDER_HOURS = 320; // two founders × 160h
+const BASE_HOURS_PER_CLIENT = 40;
+const OVERFLOW_RATE = 80; // €/h freelancer cost for work beyond capacity
+
 export function advanceServiceMonth(state, classConfig) {
   const month = state.month + 1;
   const corridors = classConfig.corridors || {};
@@ -28,11 +33,18 @@ export function advanceServiceMonth(state, classConfig) {
   const cCloseRate = corridors.closeRate || { center: 20 };
   const cRepeatRate = corridors.repeatRate || { center: 15 };
   const cMargin = corridors.grossMargin || { center: 42 };
-  const cProject = corridors.avgProject || { center: 4000 };
+
+  // Price is the founder's decision (board lever), not pulled by a corridor.
+  // Premium pricing lowers the close rate, discounting raises it a little.
+  const priceNow = s.avgProject ?? 5000;
+  const priceShift = priceNow >= PRICE_ANCHOR
+    ? -(priceNow - PRICE_ANCHOR) / 500
+    : (PRICE_ANCHOR - priceNow) / 1000;
+  const closeCenter = Math.max(4, cCloseRate.center + priceShift);
 
   // Close rate
   let closeRate = s.closeRate ?? 25;
-  closeRate = closeRate * 0.7 + cCloseRate.center * 0.3;
+  closeRate = closeRate * 0.7 + closeCenter * 0.3;
   if (productQuality > 50) closeRate += (productQuality - 50) * 0.1;
   if (s.salesEffort > 0) closeRate += s.salesEffort * 5;
   closeRate = applyVariance(closeRate * 10, 0.2) / 10;
@@ -57,27 +69,33 @@ export function advanceServiceMonth(state, classConfig) {
   const effectivePipeline = salesCycle <= 1 ? pipeline : Math.round(pipeline * (1 / salesCycle));
   const newClients = Math.max(0, Math.round(effectivePipeline * (closeRate / 100)));
 
-  // Repeat clients
+  // Engagements end: ~25% of clients finish their project each month; the
+  // repeat rate is the share of those who book the next one. (Before, repeat
+  // clients were *added* as new clients every month, which compounded the
+  // client base into the hundreds.)
   const activeClients = s.activeClients ?? 2;
-  const repeatClients = Math.max(0, Math.round(activeClients * (repeatRate / 100)));
-
-  // Client churn: services lose ~20% of non-repeat clients per month
-  const nonRepeatChurn = Math.round(activeClients * 0.15);
-  const totalClients = Math.max(0, activeClients + newClients + repeatClients - nonRepeatChurn);
+  const endingRate = 0.25 * Math.max(0.15, 1 - repeatRate / 50);
+  const nonRepeatChurn = Math.round(activeClients * endingRate);
+  const totalClients = Math.max(0, activeClients + newClients - nonRepeatChurn);
 
   // ─── Revenue & Capacity ───
-  let avgProject = s.avgProject ?? 5000;
-  avgProject = avgProject * 0.8 + cProject.center * 0.2;
-  avgProject = applyVariance(avgProject, 0.15);
-  avgProject = Math.max(1000, Math.min(50000, avgProject));
+  const avgProject = Math.max(1000, Math.min(50000, priceNow));
+  // Scope variance hits revenue, not the price list
+  const revenue = Math.max(0, applyVariance(Math.round(totalClients * avgProject), 0.1));
 
-  const revenue = Math.round(totalClients * avgProject);
-
-  // Utilization: hours needed vs capacity
-  const hoursPerClient = 40; // ~1 week per client per month
-  const billableHours = totalClients * hoursPerClient;
+  // Productization: founder time spent building the reusable product.
+  // Costs billable founder hours now, cuts hours per client later.
+  const productTime = Math.max(0, Math.min(50, s.productTime ?? 0));
   const teamCapacity = s.teamCapacity ?? 320;
-  const utilization = teamCapacity > 0 ? Math.round(billableHours / teamCapacity * 100) : 0;
+  const founderHoursLost = Math.round(FOUNDER_HOURS * productTime / 100);
+  const deliveryCapacity = Math.max(80, teamCapacity - founderHoursLost);
+
+  // Utilization: hours needed vs capacity. A productized offer needs fewer
+  // hours per client (product 80 → ~26h instead of 40h).
+  const leverage = Math.max(0, Math.min(0.35, (productQuality - 40) / 115));
+  const hoursPerClient = Math.round(BASE_HOURS_PER_CLIENT * (1 - leverage));
+  const billableHours = totalClients * hoursPerClient;
+  const utilization = deliveryCapacity > 0 ? Math.round(billableHours / deliveryCapacity * 100) : 0;
 
   // ─── Burnout mechanic ───
   let burnoutMonths = s.burnoutMonths ?? 0;
@@ -85,10 +103,15 @@ export function advanceServiceMonth(state, classConfig) {
   else burnoutMonths = Math.max(0, burnoutMonths - 1);
 
   // ─── Costs ───
-  const deliveryCost = Math.round(billableHours * 25); // €25/hr loaded cost
+  // €25/h tools + direct costs; hours beyond capacity go to freelancers at €80/h
+  const overflowHours = Math.max(0, billableHours - deliveryCapacity);
+  const deliveryCost = Math.round(billableHours * 25 + overflowHours * OVERFLOW_RATE);
   const initialBurn = classConfig?.initial?.burnRate ?? 6000;
   // Cap burn growth — shared events can spike burnRate
-  const burnBase = Math.min(Math.max(Math.round(initialBurn * 0.5), s.burnRate ?? initialBurn), initialBurn * 2.5);
+  // Cap burn growth from shared events; hires via the board lever add their
+  // cost on top (each 160h beyond the founders' 320h costs €4.5K).
+  const hireBurn = Math.max(0, (teamCapacity - FOUNDER_HOURS) / 160) * 4500;
+  const burnBase = Math.min(Math.max(Math.round(initialBurn * 0.5), s.burnRate ?? initialBurn), initialBurn * 2.5 + hireBurn);
   const salesCost = Math.round(pipeline * 100); // pipeline nurturing costs
   const miscCreep = month > 2 ? Math.round(month * 30) : 0;
   const totalBurn = burnBase + deliveryCost + salesCost + miscCreep;
@@ -111,6 +134,7 @@ export function advanceServiceMonth(state, classConfig) {
   // ─── Product quality (AI tool improvement) ───
   let product = Math.min(85, productQuality);
   if (month > 2) product = Math.max(10, product - 0.4); // slower decay for services
+  product = Math.min(85, product + productTime * 0.035); // 30% → +1/month
 
   // ─── Team morale ───
   const prevBurnRate = s.prevBurnRate ?? initialBurn;
@@ -155,7 +179,7 @@ export function advanceServiceMonth(state, classConfig) {
     repeatRate: Math.round(repeatRate * 10) / 10,
     avgProject: Math.round(avgProject),
     revenue, totalMRR: revenue,
-    utilization, teamCapacity, billableHours,
+    utilization, teamCapacity, billableHours, hoursPerClient, productTime,
     grossMargin: actualMargin, revenuePerHead,
     burnRate: burnBase, totalBurn, cash, runway, netBurn,
     price: Math.round(avgProject), cac, ltv: Math.round(ltv), ltvCacRatio,
@@ -182,9 +206,10 @@ export function generateServiceForecast(assumptions) {
     }
     const effective = salesCycle <= 1 ? pipeline : Math.round(pipeline / salesCycle);
     const newC = Math.round(effective * closeRate / 100);
-    const repeatC = Math.round(clients * repeatRate / 100);
-    const churnC = Math.round(clients * 0.15);
-    clients = Math.max(0, clients + newC + repeatC - churnC);
+    const repeatC = 0;
+    const churnC = Math.round(clients * 0.25 * Math.max(0.15, 1 - repeatRate / 50));
+    // A plan does not sell beyond the team's capacity
+    clients = Math.max(0, Math.min(Math.floor(teamCapacity / 40), clients + newC + repeatC - churnC));
     pipeline = Math.max(1, pipeline + Math.round(clients * 0.15) - Math.round(pipeline * 0.2));
     const rev = clients * avgProject;
     const hours = clients * 40;
@@ -207,17 +232,17 @@ export function generateServiceForecast(assumptions) {
 
 /**
  * Service PMF:
- * - Gross margin → 25 points (60%+ = max)
- * - Revenue → 25 points (€15K+/mo = max)
+ * - Gross margin → 20 points (60%+ = max)
+ * - Revenue → 20 points (€40K+/mo = max)
  * - Repeat rate → 20 points (40%+ = max)
  * - Utilization sweet spot → 15 points (70-90% = max, penalties above/below)
- * - Product quality → 15 points
+ * - Product (productization) → 25 points (85 = max)
  */
 export function calculateServicePMF(state) {
   const { grossMargin = 0, revenue = 0, repeatRate = 0, utilization = 0, product = 40 } = state;
 
-  const marginScore = Math.min(25, Math.round(Math.min(grossMargin, 65) / 65 * 25));
-  const revenueScore = Math.min(25, Math.round((Math.sqrt(revenue) / Math.sqrt(15000)) * 25));
+  const marginScore = Math.min(20, Math.round(Math.min(grossMargin, 60) / 60 * 20));
+  const revenueScore = Math.min(20, Math.round((Math.sqrt(revenue) / Math.sqrt(40000)) * 20));
   const repeatScore = Math.min(20, Math.round(Math.min(repeatRate, 40) / 40 * 20));
   // Utilization: sweet spot is 70-90%. Below 50% or above 100% is bad.
   let utilScore = 0;
@@ -225,7 +250,9 @@ export function calculateServicePMF(state) {
   else if (utilization >= 50 && utilization < 70) utilScore = Math.round((utilization - 50) / 20 * 15);
   else if (utilization > 90 && utilization <= 100) utilScore = Math.round((100 - utilization) / 10 * 15);
   else utilScore = 0;
-  const productScore = Math.min(15, Math.round(Math.max(0, product - 25) / 50 * 15));
+  // Productization is what separates an investable service company from a
+  // well-paid freelancer collective: largest single weight.
+  const productScore = Math.min(25, Math.round(Math.max(0, product - 30) / 55 * 25));
 
   return Math.round(marginScore + revenueScore + repeatScore + utilScore + productScore);
 }

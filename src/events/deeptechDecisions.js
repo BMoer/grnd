@@ -175,7 +175,7 @@ export const DEEPTECH_EVENTS = [
           ? 'Approved. €100K non-dilutive. Runway extended by 6+ months. The grant committee noted your "clear path to commercialization."'
           : 'Rejected. "Insufficient progress toward milestones." The application consumed a week of Sarah\'s time. Sometimes you\'re not ready, and that\'s information too.',
         effects: (s) => ((s.certProgress ?? 0) > 55 && (s.lois ?? 0) >= 1)
-          ? { ...s, cash: s.cash + 100000, grantRemaining: (s.grantRemaining ?? 0) + 100000, grantTotal: (s.grantTotal ?? 300000) + 100000 }
+          ? { ...s, grantRemaining: (s.grantRemaining ?? 0) + 100000, grantTotal: (s.grantTotal ?? 300000) + 100000 }
           : { ...s, product: s.product + 1 },
       },
       {
