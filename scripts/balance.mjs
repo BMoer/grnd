@@ -164,13 +164,15 @@ function playEvents(ctx, state, events, ap, policy) {
 		const choices = event.getChoices ? event.getChoices(ctx.classId) : [];
 		const affordable = choices.filter((c) => apLeft >= (c.apCost ?? 1));
 		const pick = policy({ ...ctx, state: s, event, affordable });
+		const month = s.month;
 		if (pick) {
+			const feedback = pick.dynamicFeedback ? pick.dynamicFeedback(s) : pick.feedback;
 			s = applyEffectsWithVariance(pick.effects, s);
 			apLeft -= pick.apCost ?? 1;
-			decisions.push({ event: event.id, choice: pick.text });
+			decisions.push({ month, event: event.title, choice: pick.text, feedback, isWorld: false, wasDefault: false });
 		} else {
 			s = applyEffectsWithVariance(event.defaultOutcome.effects, s);
-			decisions.push({ event: event.id, choice: null });
+			decisions.push({ month, event: event.title, choice: "[Skipped]", feedback: event.defaultOutcome.feedback, isWorld: false, wasDefault: true });
 		}
 		s.pmf = ctx.pmfOf(s);
 		ctx.used.push(event.id);
@@ -179,6 +181,11 @@ function playEvents(ctx, state, events, ap, policy) {
 }
 
 export function simulateGame(classId, policyName, trace = null) {
+	return simulateGameDetailed(classId, policyName, trace).summary;
+}
+
+/** Full game record: history, decisions, forecast and assumptions. */
+export function simulateGameDetailed(classId, policyName, trace = null) {
 	const config = CLASSES[classId];
 	const policy = POLICIES[policyName];
 	const assumptions = defaultAssumptions(config);
@@ -187,6 +194,15 @@ export function simulateGame(classId, policyName, trace = null) {
 	const pmfOf = getCalculatePMF(classId);
 	const ctx = { classId, config, pmfOf, used: [] };
 	const usedWorlds = [];
+	const allDecisions = [];
+	const record = (result, s, maxPmf) => ({
+		summary: summarize(result, s, maxPmf),
+		result,
+		history,
+		decisions: allDecisions,
+		forecast,
+		assumptions,
+	});
 
 	let state = buildInitialState(classId, config, assumptions, null);
 	const history = [state];
@@ -204,6 +220,7 @@ export function simulateGame(classId, policyName, trace = null) {
 				monthly = world.effect(monthly);
 				monthly.pmf = pmfOf(monthly);
 				usedWorlds.push(world.id);
+				allDecisions.push({ month: monthly.month, event: world.title, choice: "World Event", feedback: world.flavor, isWorld: true });
 			}
 		}
 		history.push(monthly);
@@ -212,7 +229,7 @@ export function simulateGame(classId, policyName, trace = null) {
 		maxPmf = Math.max(maxPmf, state.pmf ?? 0);
 
 		let end = checkEndCondition(state, history);
-		if (end) return summarize(end, state, maxPmf);
+		if (end) return record(end, state, maxPmf);
 
 		if (isBoardMeetingMonth(state.month)) {
 			const deltas = calculateDeltas(forecast, state, state.month, classId);
@@ -221,12 +238,14 @@ export function simulateGame(classId, policyName, trace = null) {
 		}
 
 		const events = drawMonthEvents(state.month, ctx.used, classId);
-		state = playEvents(ctx, state, events, ap, policy).state;
+		const played = playEvents(ctx, state, events, ap, policy);
+		state = played.state;
+		allDecisions.push(...played.decisions);
 
 		end = checkEndCondition(state, history);
-		if (end) return summarize(end, state, maxPmf);
+		if (end) return record(end, state, maxPmf);
 	}
-	return summarize("survived", state, maxPmf);
+	return record("survived", state, maxPmf);
 }
 
 function summarize(result, state, maxPmf) {

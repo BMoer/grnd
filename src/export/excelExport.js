@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import { buildBusinessCase } from './businessCase.js';
 import { getExportConfig } from './classExportConfigs.js';
 
 // Colors
@@ -29,24 +30,27 @@ function applyHeaderRow(ws, row, colCount) {
 }
 
 /**
- * Export: Class-specific Financial Model Template + Game Data.
+ * Export: business case template for the team's own startup + GRND game data.
  * Reads config from classExportConfigs.js based on classConfig.id.
  */
 export async function exportToExcel(classConfig, history, decisions, forecast, assumptions) {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'GRND';
   wb.created = new Date();
+  // No cached results are written: make Excel/Numbers/Sheets compute on open
+  wb.calcProperties = { fullCalcOnLoad: true };
 
   const ec = getExportConfig(classConfig.id);
   const lastState = history[history.length - 1] ?? {};
 
-  buildModelTemplate(wb, assumptions, ec);
-  buildScenarios(wb, assumptions, ec);
+  // Business case template (Start here, Summary, Inputs, Unit Economics,
+  // Monthly Plan + hidden scenario calcs), then reference and game appendix.
+  buildBusinessCase(wb, classConfig, assumptions, lastState);
   buildBenchmarks(wb, ec);
+  buildGlossary(wb, ec);
   buildGameComparison(wb, classConfig, history, forecast, lastState, ec);
   buildRevenueWaterfall(wb, history, ec);
   buildDecisionLog(wb, decisions);
-  buildGlossary(wb, ec);
 
   const buffer = await wb.xlsx.writeBuffer();
   if (typeof document !== 'undefined' && document.createElement) {
@@ -54,209 +58,11 @@ export async function exportToExcel(classConfig, history, decisions, forecast, a
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = ec.fileName;
+    a.download = `GRND_business_case_${classConfig.id}.xlsx`;
     a.click();
     URL.revokeObjectURL(url);
   }
   return buffer;
-}
-
-// ═══════════════════════════════════════════════════════════
-// Sheet 1: YOUR MODEL — Formula-driven template
-// ═══════════════════════════════════════════════════════════
-function buildModelTemplate(wb, assumptions, ec) {
-  const ws = wb.addWorksheet('Your Model', { views: [{ state: 'frozen', ySplit: 0, xSplit: 1 }] });
-
-  ws.columns = ec.columnWidths.map(w => ({ width: w }));
-
-  // Title
-  ws.getCell('A1').value = ec.title;
-  ws.getCell('A1').font = TITLE_FONT;
-  ws.getCell('A2').value = 'Change the blue cells below — the entire model recalculates automatically.';
-  ws.getCell('A2').font = MUTED_FONT;
-  ws.mergeCells('A2:F2');
-
-  // Assumptions section
-  ws.getCell('A4').value = 'YOUR ASSUMPTIONS';
-  ws.getCell('A4').font = HEADER_FONT;
-  ws.getCell('D4').value = 'GUIDANCE';
-  ws.getCell('D4').font = { ...HEADER_FONT, color: GREY };
-
-  const assRows = ec.assumptions;
-  for (let i = 0; i < assRows.length; i++) {
-    const r = 5 + i;
-    const ass = assRows[i];
-    const val = ass.key.startsWith('_') ? ass.default : (assumptions[ass.key] ?? ass.default);
-    ws.getCell(r, 1).value = ass.label;
-    ws.getCell(r, 1).font = { size: 10, color: DARK };
-    ws.getCell(r, 2).value = val;
-    ws.getCell(r, 2).font = INPUT_FONT;
-    ws.getCell(r, 2).fill = { type: 'pattern', pattern: 'solid', fgColor: LIGHT_BLUE_BG };
-    ws.getCell(r, 2).border = { bottom: { style: 'thin', color: BLUE_INPUT } };
-    ws.getCell(r, 4).value = ass.guidance;
-    ws.getCell(r, 4).font = MUTED_FONT;
-  }
-
-  // Projection header
-  const gapRow = 5 + assRows.length + 1;
-  const hdrRow = gapRow + 2;
-  ws.getCell(gapRow, 1).value = 'MONTHLY PROJECTION';
-  ws.getCell(gapRow, 1).font = HEADER_FONT;
-  ws.getCell(gapRow + 1, 1).value = 'All cells below are formulas driven by your assumptions above.';
-  ws.getCell(gapRow + 1, 1).font = MUTED_FONT;
-
-  const headers = ec.modelHeaders;
-  for (let c = 0; c < headers.length; c++) {
-    ws.getCell(hdrRow, c + 1).value = headers[c];
-  }
-  applyHeaderRow(ws, hdrRow, headers.length);
-
-  // Freeze at header row
-  ws.views = [{ state: 'frozen', ySplit: hdrRow, xSplit: 1 }];
-
-  // Month 0
-  const r0 = hdrRow + 1;
-  const m0Data = ec.buildMonth0Row(r0);
-  for (const [col, cellData] of Object.entries(m0Data)) {
-    const c = Number(col);
-    if (cellData.formula) {
-      ws.getCell(r0, c).value = { formula: cellData.formula, result: cellData.result };
-    } else {
-      ws.getCell(r0, c).value = cellData.value;
-    }
-  }
-  for (let c = 1; c <= headers.length; c++) ws.getCell(r0, c).font = MONO_FONT;
-
-  // Months 1-24
-  for (let m = 1; m <= 24; m++) {
-    const r = r0 + m;
-    const p = r - 1;
-    const rowData = ec.buildMonthRow(r, p, m);
-
-    for (const [col, cellData] of Object.entries(rowData)) {
-      const c = Number(col);
-      if (cellData.formula) {
-        ws.getCell(r, c).value = { formula: cellData.formula, result: cellData.result };
-      } else {
-        ws.getCell(r, c).value = cellData.value;
-      }
-    }
-
-    for (let c = 1; c <= headers.length; c++) ws.getCell(r, c).font = MONO_FONT;
-    if (ec.cashCol) ws.getCell(r, ec.cashCol).font = { ...MONO_FONT, color: DARK };
-  }
-
-  // Conditional formatting for cash column
-  if (ec.cashCol) {
-    const cashColLetter = colLetter(ec.cashCol);
-    ws.addConditionalFormatting({
-      ref: `${cashColLetter}${r0}:${cashColLetter}${r0 + 24}`,
-      rules: [{ type: 'cellIs', operator: 'lessThan', priority: 1, formulae: [0], style: { font: { color: RED }, fill: { type: 'pattern', pattern: 'solid', bgColor: LIGHT_RED_BG } } }],
-    });
-  }
-  if (ec.runwayCol) {
-    const runColLetter = colLetter(ec.runwayCol);
-    ws.addConditionalFormatting({
-      ref: `${runColLetter}${r0}:${runColLetter}${r0 + 24}`,
-      rules: [{ type: 'cellIs', operator: 'lessThan', priority: 1, formulae: [4], style: { font: { color: RED }, fill: { type: 'pattern', pattern: 'solid', bgColor: LIGHT_RED_BG } } }],
-    });
-  }
-
-  // Instructions
-  const instrRow = r0 + 26;
-  ws.getCell(instrRow, 1).value = 'HOW TO USE';
-  ws.getCell(instrRow, 1).font = HEADER_FONT;
-  const instructions = ec.instructions;
-  for (let i = 0; i < instructions.length; i++) {
-    ws.getCell(instrRow + 1 + i, 1).value = instructions[i];
-    ws.getCell(instrRow + 1 + i, 1).font = { size: 10, color: GREY };
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
-// Sheet 2: SCENARIOS
-// ═══════════════════════════════════════════════════════════
-function buildScenarios(wb, assumptions, ec) {
-  const ws = wb.addWorksheet('Scenarios');
-  ws.columns = [{ width: 20 }, { width: 4 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 4 }, { width: 50 }];
-
-  ws.getCell('A1').value = 'SCENARIO COMPARISON';
-  ws.getCell('A1').font = TITLE_FONT;
-  ws.getCell('A2').value = 'Three projections. Reality usually lands between pessimistic and neutral.';
-  ws.getCell('A2').font = MUTED_FONT;
-
-  const assRow = 4;
-  ws.getCell(assRow, 1).value = 'ASSUMPTIONS';
-  ws.getCell(assRow, 1).font = HEADER_FONT;
-  ['', '', 'Pessimistic', 'Neutral', 'Optimistic', '', 'WHAT THIS MEANS'].forEach((v, i) => {
-    ws.getCell(assRow, i + 1).value = v;
-    ws.getCell(assRow, i + 1).font = { bold: true, size: 9, color: DARK };
-  });
-
-  const inputs = ec.scenarioInputs;
-  for (let i = 0; i < inputs.length; i++) {
-    const r = assRow + 1 + i;
-    const inp = inputs[i];
-    const neutral = assumptions[inp.key] ?? inp.pess;
-    ws.getCell(r, 1).value = inp.label;
-    ws.getCell(r, 3).value = inp.pess;
-    ws.getCell(r, 3).fill = { type: 'pattern', pattern: 'solid', fgColor: LIGHT_RED_BG };
-    ws.getCell(r, 4).value = neutral;
-    ws.getCell(r, 4).fill = { type: 'pattern', pattern: 'solid', fgColor: LIGHT_BLUE_BG };
-    ws.getCell(r, 5).value = inp.opt;
-    ws.getCell(r, 5).fill = { type: 'pattern', pattern: 'solid', fgColor: LIGHT_GREEN_BG };
-    ws.getCell(r, 7).value = inp.note;
-    ws.getCell(r, 7).font = MUTED_FONT;
-    for (let c = 3; c <= 5; c++) ws.getCell(r, c).font = MONO_FONT;
-  }
-
-  // Build scenario parameter objects
-  const buildParams = (overrides) => {
-    const base = {};
-    for (const inp of inputs) {
-      base[inp.key] = assumptions[inp.key] ?? inp.pess;
-    }
-    // Include non-scenario assumptions for computation
-    for (const [k, v] of Object.entries(assumptions)) {
-      if (!(k in base)) base[k] = v;
-    }
-    return { ...base, ...overrides };
-  };
-
-  const pessParams = buildParams(Object.fromEntries(inputs.map(i => [i.key, i.pess])));
-  const neutParams = buildParams({});
-  const optParams = buildParams(Object.fromEntries(inputs.map(i => [i.key, i.opt])));
-
-  const results = [pessParams, neutParams, optParams].map(sc => ec.computeScenarioResult(sc));
-
-  const resRow = assRow + inputs.length + 2;
-  ws.getCell(resRow, 1).value = '24-MONTH RESULTS';
-  ws.getCell(resRow, 1).font = HEADER_FONT;
-  ['', '', 'Pessimistic', 'Neutral', 'Optimistic'].forEach((v, i) => {
-    ws.getCell(resRow, i + 1).value = v;
-    ws.getCell(resRow, i + 1).font = { bold: true, size: 9 };
-  });
-
-  // Each result is an array of [label, value] pairs
-  const metricCount = results[0].length;
-  for (let i = 0; i < metricCount; i++) {
-    const r = resRow + 1 + i;
-    ws.getCell(r, 1).value = results[0][i][0]; // label from first scenario
-    for (let c = 0; c < 3; c++) {
-      ws.getCell(r, c + 3).value = results[c][i][1];
-      ws.getCell(r, c + 3).font = { ...MONO_FONT, bold: true };
-    }
-  }
-
-  // Survival question
-  const warnRow = resRow + metricCount + 2;
-  ws.getCell(warnRow, 1).value = ec.survivalQuestion;
-  ws.getCell(warnRow, 1).font = { bold: true, color: RED, size: 11 };
-  const notes = ec.survivalNotes;
-  for (let i = 0; i < notes.length; i++) {
-    ws.getCell(warnRow + 1 + i, 1).value = notes[i];
-    ws.getCell(warnRow + 1 + i, 1).font = MUTED_FONT;
-  }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -436,16 +242,4 @@ function buildGlossary(wb, ec) {
       ws.getCell(refRow + 1 + i, 2).font = { color: BLUE_INPUT, underline: true, size: 10 };
     });
   }
-}
-
-// ─── Helpers ─────────────────────────────────────────────
-function colLetter(num) {
-  let s = '';
-  let n = num;
-  while (n > 0) {
-    n--;
-    s = String.fromCharCode(65 + (n % 26)) + s;
-    n = Math.floor(n / 26);
-  }
-  return s;
 }

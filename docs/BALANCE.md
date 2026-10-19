@@ -103,15 +103,19 @@ Setup-Annahmen. Vorher wurden ihm SaaS-Felder übergeben.
 - PMF: Produkt ist mit 25 Punkten das größte Gewicht (voll bei 85), Umsatz voll bei €40K,
   Wiederkauf voll bei 40 %.
 
+## Nachtrag 19.10.2026 (zweiter Durchgang)
+
+- **Board-Feedback klassenspezifisch:** `src/engine/boardMeeting.js` hat jetzt `BOARD_METRICS` pro
+  Klasse (z. B. Service: Umsatz, aktive Kunden, Auslastung, Marge, Pipeline, Cash). Sprecher sind
+  die Gründer der jeweiligen Klasse, nicht mehr Mira/Jonas aus SaaS.
+- **Telemetrie/Admin:** neuer Upstash-Store `grnd-telemetry` über die Vercel-Integration, alte
+  KV-Variablen ersetzt. `api/telemetry.js` und `api/inject.js` haben keinen Fallback-Key mehr (das
+  Repo ist öffentlich, `grnd2025` stand im Code); `ADMIN_KEY` ist nur in Vercel (Production) und
+  `.env.local` gesetzt.
+- **Excel-Export → Business-Case-Vorlage:** siehe `docs/EXPORT.md`.
+
 ## Offen / TODO
 
-- **Board-Feedback ist klassenblind:** Sprecher (z. B. „Jonas“ bei Service), Delta-Tabelle und
-  Texte nutzen SaaS-Metriken (MRR, Churn, CAC) für alle Klassen.
-- **Excel-Export** (`src/export/classExportConfigs.js`) enthält eigene Formeln. Die sind noch nicht
-  an die geänderte Consumer-Viralität/LTV, das Marketplace-Matching und die Service-Kundenlogik
-  angeglichen.
 - Service-Umsätze im Smart-Fall bis ~€100K/Monat sind hoch für eine Beratung mit max. 10 Personen.
 - Die alten Playtest-Skripte (`testHarness.js`, `smartPlaytest.js`, `consumerPlaytest.js`,
   `deeptechPlaytest.js`) laufen weiterhin am Spielfluss vorbei; maßgeblich ist `scripts/balance.mjs`.
-- Admin-Dashboard/Telemetrie: der KV-Store (`smart-filly-66502.upstash.io`) existiert nicht mehr
-  (NXDOMAIN), `/api/telemetry` antwortet mit 500.

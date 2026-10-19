@@ -248,7 +248,7 @@ export default function EndScreen() {
 							fontFamily: "var(--font-display)",
 						}}
 					>
-						Download Financial Model
+						Download Business Case (Excel)
 					</button>
 					<button
 						onClick={handleRunExport}
