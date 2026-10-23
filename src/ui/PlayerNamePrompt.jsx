@@ -32,13 +32,13 @@ export default function PlayerNamePrompt() {
 					className="text-sm mb-6"
 					style={{ color: "var(--color-text-secondary)" }}
 				>
-					Enter your name so the workshop facilitator can follow your progress.
+					First name and startup.
 				</p>
 				<input
 					type="text"
 					value={name}
 					onChange={(e) => setName(e.target.value)}
-					placeholder="Your name"
+					placeholder="e.g. Anna Acme"
 					maxLength={30}
 					className="w-full px-4 py-3 rounded mb-3 text-sm"
 					style={{

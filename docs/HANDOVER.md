@@ -1,6 +1,6 @@
 # Handover — GRND
 
-Stand: 2026-10-20. Repo am 19.10. aus `_archive/` nach `~/Projekte/GRND` zurückgeholt, Einsatz im
+Stand: 2026-10-23 (nach dem Workshop). Repo am 19.10. aus `_archive/` nach `~/Projekte/GRND` zurückgeholt, Einsatz im
 Workshop am Fr 23.10.2026.
 
 ## Was live / fertig
@@ -23,12 +23,45 @@ Workshop am Fr 23.10.2026.
 - Preview-Deployments (`vercel deploy` ohne `--prod`) bekommen `ADMIN_KEY` nicht automatisch;
   beim Testen `--env ADMIN_KEY=…` mitgeben, Zugriff über `vercel curl`.
 
+## Workshop 23.10.2026: Befunde
+
+Einsatz in einem Accelerator-Workshop, 9 Teams am Vormittag, 6 am Nachmittag, zwei Spielrunden,
+20 beendete Läufe im Archiv. Kein Ausfall, keine JS-Fehler; Telemetrie, Dashboard,
+Event-Injektion und Excel-Download liefen den ganzen Tag. Geprüft vorab: Export aller fünf
+Klassen in Microsoft Excel geöffnet, Szenario-Umschalter, jede Eingabe auf ×1,5 / 0 / leer –
+keine Fehlerzellen, Richtung plausibel.
+
+1. **Service war zu großzügig.** Ein Lauf erreichte 2,7 Mio. € Cash und rund 400.000 € Umsatz im
+   Monat: Preis per Board-Regler auf ~12.000 € pro Kunde und Monat bei ~26 h Lieferung
+   (≈ 470 €/h), Kunden blieben trotzdem und wuchsen auf 33. **Behoben (lokal, nicht deployt):**
+   `serviceEngine.js` bestraft einen Preis über 150 €/h (gemessen auf 40 h) bei Abschluss- und
+   Wiederkaufrate. Nachgestellter Fall (Preis 12.000 €, 10 Personen): 6 statt ~30 Kunden.
+   `npm run balance service 300`: mixed endRev 129k → 90k, smart 108k → 77k, Todesraten
+   unverändert.
+2. **Kaum jemand ändert die Annahmen.** 12 von 18 Teilnehmer-Läufen mit den Vorgaben, auch in
+   Runde 2, obwohl die Folie „eine Sache ändern“ verlangte. Offen: Vor Runde 2 die Annahmen des
+   letzten Laufs zeigen und eine Änderung verlangen (Pflichtfeld „What do you change, and why?“).
+3. **Deep-Tech lehrt das Richtige.** Gewonnen haben nur Läufe mit niedrigem F&E-Burn; hohe
+   Stückpreise bei hohem Burn starben vor der Zertifizierung. Nicht anfassen.
+4. **Spielername = Login.** Viele gaben nur den Vornamen ein, dadurch im Dashboard nicht
+   zuordenbar; gleiche Namen überschreiben sich. **Geändert (lokal):** Login fragt nach
+   „First name and startup“. Offen: zweites Feld oder Eindeutigkeit prüfen.
+5. **Dashboard zeigt nur Spieler im Spiel.** Wer bei Klasse/Gründer/Annahmen steht, fehlt.
+   Offen: Telemetrie schon ab Login senden (`screen` mitschicken).
+6. **Excel: Prozentfelder.** Wer „15%“ tippt, speichert 0,15 und das Modell rechnet mit 0,15 %
+   (Umsatz Jahr 3 fällt bei SaaS von 75k auf 28k, ohne Fehlermeldung). Am Tag per Ansage
+   umgangen. Offen: Prozentzellen als echtes Excel-Prozentformat und Formeln ohne `/100`.
+7. Kleinere Randfälle im Export: Akquisekosten = 0 ergibt bei Consumer/Marketplace kein Wachstum
+   statt unbegrenztem; Service-Auftragsdauer = 0 treibt den Umsatz auf ~2 Mio. €.
+8. Eine Bug-Meldung aus dem Raum (Marketplace) kam inhaltlich nie an; Nachspielen der Klasse fand
+   nichts.
+
 ## Offene Punkte (nächste Session)
 
-- [ ] Eine Export-Datei einmal in echtem Excel öffnen (Neuberechnung beim Öffnen, Dropdowns,
-      bedingte Formatierung). Nachgerechnet ist nur mit dem Python-Paket `formulas`.
-- [ ] Nach dem Workshop am 23.10.: beobachtete Fehler und Spielerfeedback hier eintragen.
-- [ ] Service-Umsätze im Smart-Fall (~€100K/Monat) für eine Beratung mit max. 10 Personen hoch.
+- [ ] Änderungen aus Befund 1 und 4 deployen (nach OK).
+- [ ] Befund 2: Annahmen-Vergleich vor Runde 2.
+- [ ] Befund 5: Telemetrie ab Login.
+- [ ] Befund 6: Prozentformat im Export.
 - [ ] Alte Playtest-Skripte (`src/engine/testHarness.js`, `smartPlaytest.js`,
       `consumerPlaytest.js`, `deeptechPlaytest.js`) laufen am Spielfluss vorbei: anpassen oder
       löschen.

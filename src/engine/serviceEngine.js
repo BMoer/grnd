@@ -10,6 +10,10 @@ const PRICE_ANCHOR = 5000; // €/client/month where the close-rate corridor is 
 const FOUNDER_HOURS = 320; // two founders × 160h
 const BASE_HOURS_PER_CLIENT = 40;
 const OVERFLOW_RATE = 80; // €/h freelancer cost for work beyond capacity
+// Market rate for consulting work. Above it, a client pays for hours it could buy
+// cheaper elsewhere: fewer close, fewer rebook. (Workshop 23.10.2026: a player
+// billed €12K per client for ~26h, i.e. ~€470/h, and kept compounding clients.)
+const FAIR_HOURLY_RATE = 150;
 
 export function advanceServiceMonth(state, classConfig) {
   const month = state.month + 1;
@@ -40,7 +44,10 @@ export function advanceServiceMonth(state, classConfig) {
   const priceShift = priceNow >= PRICE_ANCHOR
     ? -(priceNow - PRICE_ANCHOR) / 500
     : (PRICE_ANCHOR - priceNow) / 1000;
-  const closeCenter = Math.max(4, cCloseRate.center + priceShift);
+  // Overpricing against the hours delivered (value measured on the unproductized
+  // 40h, so productization still earns a higher price per hour).
+  const overpricing = Math.max(0, priceNow / BASE_HOURS_PER_CLIENT - FAIR_HOURLY_RATE);
+  const closeCenter = Math.max(4, cCloseRate.center + priceShift - overpricing / 10);
 
   // Close rate
   let closeRate = s.closeRate ?? 25;
@@ -52,7 +59,8 @@ export function advanceServiceMonth(state, classConfig) {
 
   // Repeat rate
   let repeatRate = s.repeatRate ?? 20;
-  repeatRate = repeatRate * 0.75 + cRepeatRate.center * 0.25;
+  const repeatCenter = Math.max(3, cRepeatRate.center - overpricing / 5);
+  repeatRate = repeatRate * 0.75 + repeatCenter * 0.25;
   if (productQuality > 50) repeatRate += (productQuality - 50) * 0.15;
   repeatRate = applyVariance(repeatRate * 10, 0.15) / 10;
   repeatRate = Math.max(3, Math.min(60, repeatRate));
